@@ -14,78 +14,103 @@ enum Function {
     Belt(Direction),
 }
 struct Entity {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
     function: Function,
 }
 impl Entity {
-    fn size_x(&self) -> usize {
+    fn size_x(&self) -> i32 {
         match self.function {
             Function::Belt(_) | Function::Inserter { .. } => 1,
             Function::Assembler { .. } => 3,
         }
     }
-    fn size_y(&self) -> usize {
+    fn size_y(&self) -> i32 {
         self.size_x() // currently everything is quadratic
     }
 }
 
+struct AsciiCanvas {
+    offset_x: i32,
+    offset_y: i32,
+    canvas: Vec<Vec<char>>,
+}
+impl AsciiCanvas {
+    fn build(entities: Vec<Entity>) -> Self {
+        let min_x = entities.iter().map(|x| x.x).min().unwrap_or(0);
+        let min_y = entities.iter().map(|x| x.y).min().unwrap_or(0);
+        let max_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0);
+        let max_y = entities.iter().map(|x| x.y + x.size_y()).max().unwrap_or(0);
+
+        let offset_x = -min_x;
+        let offset_y = -min_y;
+        let size_x = max_x + offset_x;
+        let size_y = max_y + offset_y;
+
+        let canvas_row: Vec<char> = iter::repeat(' ').take(size_x as usize).collect();
+        let mut canvas = AsciiCanvas {
+            canvas: iter::repeat(canvas_row).take(size_y as usize).collect(),
+            offset_x,
+            offset_y,
+        };
+    
+        for e in entities {
+            match e.function {
+                Function::Assembler { recipe } => {
+                    canvas.set(e.x+0,e.y+0, '┌');
+                    canvas.set(e.x+1,e.y+0, '─');
+                    canvas.set(e.x+2,e.y+0, '┐');
+                    canvas.set(e.x+0,e.y+1, '│');
+                    canvas.set(e.x+1,e.y+1, recipe.to_uppercase().chars().next().unwrap());
+                    canvas.set(e.x+2,e.y+1, '│');
+                    canvas.set(e.x+0,e.y+2, '└');
+                    canvas.set(e.x+1,e.y+2, '─');
+                    canvas.set(e.x+2,e.y+2, '┘');
+                }
+                Function::Inserter { orientation: d, long_handed } => {
+                    let symbol = if long_handed {
+                        match d {
+                            Direction::Up => '↟',
+                            Direction::Down => '↡',
+                            Direction::Left => '↞',
+                            Direction::Right => '↠',
+                        }
+                    } else {
+                        match d {
+                            Direction::Up => '↑',
+                            Direction::Down => '↓',
+                            Direction::Left => '←',
+                            Direction::Right => '→',
+                        }
+                    };
+                    canvas.set(e.x, e.y, symbol);
+                }
+                Function::Belt(d) => {
+                    let symbol = match d {
+                        Direction::Up => '⍐',
+                        Direction::Down => '⍗',
+                        Direction::Left => '⍇',
+                        Direction::Right => '⍈',
+                    };
+                    canvas.set(e.x, e.y, symbol);
+                },
+            }
+        }
+
+        canvas
+    }
+
+    fn set(&mut self, x: i32, y: i32, c: char) {
+        self.canvas[(y + self.offset_y) as usize][(x + self.offset_x) as usize] = c;
+    }
+
+    fn render(&self) -> String {
+        self.canvas.iter().map(String::from_iter).collect::<Vec<_>>().join("\n")
+    }
+}
 
 fn render_blueprint_ascii(entities: Vec<Entity>) {
-    let size_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0);
-    let size_y = entities.iter().map(|x| x.y + x.size_y()).max().unwrap_or(0);
-    
-    let canvas_row: Vec<char> = iter::repeat(' ').take(size_x).collect();
-    let mut canvas: Vec<_> = iter::repeat(canvas_row).take(size_y).collect();
-    
-    for e in entities {
-        match e.function {
-            Function::Assembler { recipe } => {
-                canvas[e.y+0][e.x+0] = '┌';
-                canvas[e.y+0][e.x+1] = '─';
-                canvas[e.y+0][e.x+2] = '┐';
-                canvas[e.y+1][e.x+0] = '│';
-                canvas[e.y+1][e.x+1] = recipe.to_uppercase().chars().next().unwrap();
-                canvas[e.y+1][e.x+2] = '│';
-                canvas[e.y+2][e.x+0] = '└';
-                canvas[e.y+2][e.x+1] = '─';
-                canvas[e.y+2][e.x+2] = '┘';
-            }
-            Function::Inserter { orientation: d, long_handed } => {
-                let symbol = if long_handed {
-                    match d {
-                        Direction::Up => '↟',
-                        Direction::Down => '↡',
-                        Direction::Left => '↞',
-                        Direction::Right => '↠',
-                    }
-                } else {
-                    match d {
-                        Direction::Up => '↑',
-                        Direction::Down => '↓',
-                        Direction::Left => '←',
-                        Direction::Right => '→',
-                    }
-                };
-                canvas[e.y][e.x] = symbol;
-            }
-            Function::Belt(d) => {
-                let symbol = match d {
-                    Direction::Up => '⍐',
-                    Direction::Down => '⍗',
-                    Direction::Left => '⍇',
-                    Direction::Right => '⍈',
-//                    Direction::Up | Direction::Down => '║',
-//                    Direction::Left | Direction::Right => '═',
-                };
-                canvas[e.y][e.x] = symbol;
-            },
-        }
-    }
-
-    for row in canvas {
-        println!("{}", String::from_iter(row));
-    }
+    println!("{}", AsciiCanvas::build(entities).render());
 }
 
 #[derive(Debug, Clone)]
@@ -286,11 +311,12 @@ fn main() {
     println!("assemblers needed: {:?}", needed_assemblers);
     
     // very simple and stupid grid placer
-    let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as usize;
+    let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as i32;
     println!("gridsize={}", gridsize);
     
     let mut pcb = Vec::new();
     for (i, &a) in needed_assemblers.iter().enumerate() {
+        let i = i as i32;
         let grid_x = i % gridsize;
         let grid_y = i / gridsize;
         
