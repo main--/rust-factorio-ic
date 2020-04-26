@@ -10,7 +10,7 @@ enum Direction {
 
 enum Function {
     Assembler { recipe: String },
-    Inserter(Direction),
+    Inserter { orientation: Direction, long_handed: bool },
     Belt(Direction),
 }
 struct Entity {
@@ -21,7 +21,7 @@ struct Entity {
 impl Entity {
     fn size_x(&self) -> usize {
         match self.function {
-            Function::Belt(_) | Function::Inserter(_) => 1,
+            Function::Belt(_) | Function::Inserter { .. } => 1,
             Function::Assembler { .. } => 3,
         }
     }
@@ -51,12 +51,21 @@ fn render_blueprint_ascii(entities: Vec<Entity>) {
                 canvas[e.y+2][e.x+1] = '─';
                 canvas[e.y+2][e.x+2] = '┘';
             }
-            Function::Inserter(d) => {
-                let symbol = match d {
-                    Direction::Up => '↑',
-                    Direction::Down => '↓',
-                    Direction::Left => '←',
-                    Direction::Right => '→',
+            Function::Inserter { orientation: d, long_handed } => {
+                let symbol = if long_handed {
+                    match d {
+                        Direction::Up => '↟',
+                        Direction::Down => '↡',
+                        Direction::Left => '↞',
+                        Direction::Right => '↠',
+                    }
+                } else {
+                    match d {
+                        Direction::Up => '↑',
+                        Direction::Down => '↓',
+                        Direction::Left => '←',
+                        Direction::Right => '→',
+                    }
                 };
                 canvas[e.y][e.x] = symbol;
             }
@@ -226,7 +235,7 @@ fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) -> P
         let (how_many, building) = match recipe.category {
             Category::Assembler => (how_many_concurrents / 0.75, "assembler"),
             Category::Furnace => (how_many_concurrents / 2., "furnace"),
-            _ => unimplemented!(),
+            _ => (-1., "<unimplemented>"),
         };
 
         let inputs = recipe.ingredients.iter().map(|&(ref d, amt)| kirkmcdonald(recipes, d, amt as f64 / results_per_step * desired_per_second)).collect();
@@ -253,6 +262,18 @@ fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) -> P
     }
 }
 
+fn needed_assemblers<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item=&'a str> + 'a> {
+    let upstream = g.inputs.iter().flat_map(needed_assemblers);
+    if g.building == "assembler" {
+        Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
+    } else {
+        Box::new(upstream)
+    }
+}
+
+fn flatten() {
+
+}
 
 fn main() {
     let recipes = read_recipes().unwrap();
@@ -260,6 +281,50 @@ fn main() {
     
     println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
 
+    let tree = kirkmcdonald(&recipes, "logistic-science-pack", 0.75);
+    let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
+    println!("assemblers needed: {:?}", needed_assemblers);
+    
+    // very simple and stupid grid placer
+    let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as usize;
+    println!("gridsize={}", gridsize);
+    
+    let mut pcb = Vec::new();
+    for (i, &a) in needed_assemblers.iter().enumerate() {
+        let grid_x = i % gridsize;
+        let grid_y = i / gridsize;
+        
+        let cell_size_x = 15;
+        let cell_size_y = 10;
+        
+        let startx = cell_size_x * grid_x;
+        let starty = cell_size_y * grid_y;
+        
+        pcb.extend(vec![
+            // output belt
+            Entity { x: startx + 0, y: starty + 0, function: Function::Belt(Direction::Down) },
+            Entity { x: startx + 0, y: starty + 1, function: Function::Belt(Direction::Down) },
+            Entity { x: startx + 0, y: starty + 2, function: Function::Belt(Direction::Down) },
+
+            // input belt
+            Entity { x: startx + 6, y: starty + 0, function: Function::Belt(Direction::Up) },
+            Entity { x: startx + 6, y: starty + 1, function: Function::Belt(Direction::Up) },
+            Entity { x: startx + 6, y: starty + 2, function: Function::Belt(Direction::Up) },
+            // input belt 2
+            Entity { x: startx + 7, y: starty + 0, function: Function::Belt(Direction::Up) },
+            Entity { x: startx + 7, y: starty + 1, function: Function::Belt(Direction::Up) },
+            Entity { x: startx + 7, y: starty + 2, function: Function::Belt(Direction::Up) },
+
+            Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: a.to_owned() } },
+            Entity { x: startx + 1, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
+            Entity { x: startx + 5, y: starty + 0, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
+            Entity { x: startx + 5, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: true } },
+        ]);
+    }
+    
+
+    render_blueprint_ascii(pcb);
+    /*
     render_blueprint_ascii(vec![
         Entity { x: 2, y: 0, function: Function::Assembler { recipe: "gears".to_owned() } },
         Entity { x: 1, y: 1, function: Function::Inserter(Direction::Left) },
@@ -268,4 +333,5 @@ fn main() {
         Entity { x: 0, y: 2, function: Function::Belt(Direction::Down) },
         Entity { x: 0, y: 3, function: Function::Belt(Direction::Down) },
     ]);
+    */
 }
