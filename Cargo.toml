@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 factorio-blueprint = "0.1.1"
 rlua = "0.17"
+leemaze = "0.1.11"

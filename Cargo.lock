@@ -73,6 +73,7 @@ name = "factorio-ic"
 version = "0.1.0"
 dependencies = [
  "factorio-blueprint",
+ "leemaze",
  "rlua",
 ]
 
@@ -93,6 +94,12 @@ name = "itoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
+
+[[package]]
+name = "leemaze"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d938e2402238b8b602bf1a2603259abb305de8ab080d791ded7d68ebec2801"
 
 [[package]]
 name = "libc"

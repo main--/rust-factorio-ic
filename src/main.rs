@@ -28,6 +28,10 @@ impl Entity {
     fn size_y(&self) -> i32 {
         self.size_x() // currently everything is quadratic
     }
+    fn overlaps(&self, x: i32, y: i32) -> bool {
+        (self.x <= x) && (self.x + self.size_x() > x) &&
+            (self.y <= y) && (self.y + self.size_y() > y)
+    }
 }
 
 struct AsciiCanvas {
@@ -290,6 +294,7 @@ fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) -> P
 fn needed_assemblers<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item=&'a str> + 'a> {
     let upstream = g.inputs.iter().flat_map(needed_assemblers);
     if g.building == "assembler" {
+        println!("i={}", g.inputs.len());
         Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
     } else {
         Box::new(upstream)
@@ -300,13 +305,90 @@ fn flatten() {
 
 }
 
+/*
+
+# Types of wires:
+
+* One-to-many: One gears assembler feeds many automation science pack assemblers
+    * Trivial implementation: Belt connection
+* Many-to-one
+    * Trivial implementation: Belt connection
+* Lane merge
+    * Trivial implementation: L+R construction
+ */
+
+fn lee_pathfinder(entities: &[Entity], from: (i32, i32), to: (i32, i32)) {
+    use leemaze::{AllowedMoves2D, maze_directions2d};
+
+    let max_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0) + 10;
+    let max_y = entities.iter().map(|x| x.y + x.size_y()).max().unwrap_or(0) + 10;
+    
+    let mut rows = Vec::new();
+    for y in 0..max_y {
+        let mut row = Vec::new();
+        for x in 0..max_x {
+            row.push(entities.iter().any(|e| e.overlaps(x, y)));
+        }
+        rows.push(row);
+    }
+    
+//    /*
+    for row in &rows {
+        for &x in row {
+            if x {
+                print!("X");
+            } else {
+                print!(" ");
+            }
+        }
+        println!();
+    }
+//    */
+    
+    let moveset = AllowedMoves2D {
+        moves: vec![
+            (1, 0),
+            (0, 1),
+            (-1, 0),
+            (0, -1),
+        ],
+    };
+    let path = maze_directions2d(&rows, &moveset, &(from.0 as usize, from.1 as usize), &(to.0 as usize, to.1 as usize));
+    println!("{:?}", path);
+
+
+
+    let mut rows2 = rows.iter().map(|x| x.iter().map(|&b| if b { 'X' } else { ' ' }).collect::<Vec<_>>()).collect::<Vec<_>>();
+    let mut path2 = vec![from];
+    for step in path.unwrap() {
+        let prev = path2.last().unwrap();
+        let mov = moveset.moves[step];
+        let next = (prev.0 + mov.0, prev.1 + mov.1);
+        path2.push(next);
+    }
+    println!("{:?}", path2);
+    
+    for (i, &(x, y)) in path2.iter().enumerate() {
+        let c = i.to_string().chars().last().unwrap();
+        rows2[y as usize][x as usize] = c;
+    }
+
+
+    for row in &rows2 {
+        for &x in row {
+            print!("{}", x);
+        }
+        println!();
+    }
+}
+
 fn main() {
     let recipes = read_recipes().unwrap();
     println!("Parsed {} recipes", recipes.len());
     
     println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
 
-    let tree = kirkmcdonald(&recipes, "logistic-science-pack", 0.75);
+    let tree = kirkmcdonald(&recipes, "automation-science-pack", 0.75);
     let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
     println!("assemblers needed: {:?}", needed_assemblers);
     
@@ -325,29 +407,36 @@ fn main() {
         
         let startx = cell_size_x * grid_x;
         let starty = cell_size_y * grid_y;
-        
+
         pcb.extend(vec![
+            Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: a.to_owned() } },
+
+
             // output belt
             Entity { x: startx + 0, y: starty + 0, function: Function::Belt(Direction::Down) },
             Entity { x: startx + 0, y: starty + 1, function: Function::Belt(Direction::Down) },
             Entity { x: startx + 0, y: starty + 2, function: Function::Belt(Direction::Down) },
+            Entity { x: startx + 1, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
 
             // input belt
             Entity { x: startx + 6, y: starty + 0, function: Function::Belt(Direction::Up) },
             Entity { x: startx + 6, y: starty + 1, function: Function::Belt(Direction::Up) },
             Entity { x: startx + 6, y: starty + 2, function: Function::Belt(Direction::Up) },
+            Entity { x: startx + 5, y: starty + 0, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
+        ]);
+        
+        pcb.extend(vec![
             // input belt 2
             Entity { x: startx + 7, y: starty + 0, function: Function::Belt(Direction::Up) },
             Entity { x: startx + 7, y: starty + 1, function: Function::Belt(Direction::Up) },
             Entity { x: startx + 7, y: starty + 2, function: Function::Belt(Direction::Up) },
-
-            Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: a.to_owned() } },
-            Entity { x: startx + 1, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
-            Entity { x: startx + 5, y: starty + 0, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
             Entity { x: startx + 5, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: true } },
         ]);
     }
     
+    lee_pathfinder(&pcb, (10, 2), (25, 10));
+    lee_pathfinder(&pcb, (25, 12), (40, 10));
+    lee_pathfinder(&pcb, (0, 2), (38, 10));
 
     render_blueprint_ascii(pcb);
     /*
