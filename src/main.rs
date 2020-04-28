@@ -1,6 +1,7 @@
 use std::iter::{self, FromIterator};
 use rlua::{Table, Lua, Result};
 
+#[derive(Clone, Copy)]
 enum Direction {
     Up,
     Down,
@@ -40,7 +41,7 @@ struct AsciiCanvas {
     canvas: Vec<Vec<char>>,
 }
 impl AsciiCanvas {
-    fn build(entities: Vec<Entity>) -> Self {
+    fn build(entities: &[Entity]) -> Self {
         let min_x = entities.iter().map(|x| x.x).min().unwrap_or(0);
         let min_y = entities.iter().map(|x| x.y).min().unwrap_or(0);
         let max_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0);
@@ -60,7 +61,7 @@ impl AsciiCanvas {
     
         for e in entities {
             match e.function {
-                Function::Assembler { recipe } => {
+                Function::Assembler { ref recipe } => {
                     canvas.set(e.x+0,e.y+0, '┌');
                     canvas.set(e.x+1,e.y+0, '─');
                     canvas.set(e.x+2,e.y+0, '┐');
@@ -113,7 +114,7 @@ impl AsciiCanvas {
     }
 }
 
-fn render_blueprint_ascii(entities: Vec<Entity>) {
+fn render_blueprint_ascii(entities: &[Entity]) {
     println!("{}", AsciiCanvas::build(entities).render());
 }
 
@@ -317,17 +318,17 @@ fn flatten() {
     * Trivial implementation: L+R construction
  */
 
-fn lee_pathfinder(entities: &[Entity], from: (i32, i32), to: (i32, i32)) {
+fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) {
     use leemaze::{AllowedMoves2D, maze_directions2d};
 
     let max_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0) + 10;
     let max_y = entities.iter().map(|x| x.y + x.size_y()).max().unwrap_or(0) + 10;
     
     let mut rows = Vec::new();
-    for y in 0..max_y {
+    for y in -10..max_y {
         let mut row = Vec::new();
-        for x in 0..max_x {
-            row.push(entities.iter().any(|e| e.overlaps(x, y)));
+        for x in -10..max_x {
+            row.push((x,y) != to && entities.iter().any(|e| e.overlaps(x, y)));
         }
         rows.push(row);
     }
@@ -351,16 +352,27 @@ fn lee_pathfinder(entities: &[Entity], from: (i32, i32), to: (i32, i32)) {
             (0, 1),
             (-1, 0),
             (0, -1),
+
+/*            // underground belts
+            (6, 0),
+            (0, 6),
+            (-6, 0),
+            (0, -6),*/
         ],
     };
-    let path = maze_directions2d(&rows, &moveset, &(from.0 as usize, from.1 as usize), &(to.0 as usize, to.1 as usize));
+    let path = maze_directions2d(&rows, &moveset, &(from.0 as usize + 10, from.1 as usize + 10), &(to.0 as usize + 10, to.1 as usize + 10));
     println!("{:?}", path);
 
-
+    let moveset_dir = [
+        Direction::Right,
+        Direction::Down,
+        Direction::Left,
+        Direction::Up,
+    ];
 
     let mut rows2 = rows.iter().map(|x| x.iter().map(|&b| if b { 'X' } else { ' ' }).collect::<Vec<_>>()).collect::<Vec<_>>();
-    let mut path2 = vec![from];
-    for step in path.unwrap() {
+    let mut path2 = vec![(from.0 + 10, from.1 + 10)];
+    for &step in path.as_ref().unwrap() {
         let prev = path2.last().unwrap();
         let mov = moveset.moves[step];
         let next = (prev.0 + mov.0, prev.1 + mov.1);
@@ -379,6 +391,16 @@ fn lee_pathfinder(entities: &[Entity], from: (i32, i32), to: (i32, i32)) {
             print!("{}", x);
         }
         println!();
+    }
+
+    let mut cursor = from;
+    for step in path.unwrap() {
+        let (x, y) = cursor;
+        entities.retain(|e| !e.overlaps(x, y)); // delete conflicting entities
+        entities.push(Entity { x, y, function: Function::Belt(moveset_dir[step]) });
+
+        let mov = moveset.moves[step];
+        cursor = (x + mov.0, y + mov.1);
     }
 }
 
@@ -434,11 +456,32 @@ fn main() {
         ]);
     }
     
-    lee_pathfinder(&pcb, (10, 2), (25, 10));
-    lee_pathfinder(&pcb, (25, 12), (40, 10));
-    lee_pathfinder(&pcb, (0, 2), (38, 10));
+//    lee_pathfinder(&pcb, (10, 2), (25, 10));
+    lee_pathfinder(&mut pcb, (30, 12), (21, 12));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (21, 10), (6, 12));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (6, 10), (36, 2));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (36, 0), (21, 2));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (21, 0), (6, 2));
 
-    render_blueprint_ascii(pcb);
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 15), (7, 12));
+/*
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 15), (7, 2));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 15), (22, 2));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 15), (37, 2));
+*/
+
+
+//    lee_pathfinder(&pcb, (0, 2), (38, 10));
+
+    render_blueprint_ascii(&pcb);
     /*
     render_blueprint_ascii(vec![
         Entity { x: 2, y: 0, function: Function::Assembler { recipe: "gears".to_owned() } },
