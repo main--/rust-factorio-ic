@@ -13,6 +13,7 @@ enum Function {
     Assembler { recipe: String },
     Inserter { orientation: Direction, long_handed: bool },
     Belt(Direction),
+    UndergroundBelt(Direction, bool),
 }
 struct Entity {
     x: i32,
@@ -22,7 +23,7 @@ struct Entity {
 impl Entity {
     fn size_x(&self) -> i32 {
         match self.function {
-            Function::Belt(_) | Function::Inserter { .. } => 1,
+            Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } => 1,
             Function::Assembler { .. } => 3,
         }
     }
@@ -99,6 +100,24 @@ impl AsciiCanvas {
                     };
                     canvas.set(e.x, e.y, symbol);
                 },
+                Function::UndergroundBelt(d, down) => {
+                    let symbol = if down {
+                        match d {
+                        Direction::Up => '⍓',
+                        Direction::Down => '⍌',
+                        Direction::Left => '⍃',
+                        Direction::Right => '⍄',
+                        }
+                    } else {
+                        match d {
+                        Direction::Up => '⍌',
+                        Direction::Down => '⍓',
+                        Direction::Left => '⍄',
+                        Direction::Right => '⍃',
+                        }
+                    };
+                    canvas.set(e.x, e.y, symbol);
+                }
             }
         }
 
@@ -318,6 +337,84 @@ fn flatten() {
     * Trivial implementation: L+R construction
  */
 
+fn lee_pathfinder_new(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) {
+
+let moveset = [
+(Direction::Right, Translation::new(1, 0)),
+(Direction::Down, Translation::new(0, 1)),
+(Direction::Left, Translation::new(-1, 0)),
+(Direction::Up, Translation::new(0, -1)),
+];
+
+
+let from = Point2::new(from.0, from.1);
+let to = Point2::new(to.0, to.1);
+
+    let path = mylee(entities, &moveset, from, to);
+
+    let mut cursor = from;
+    for step in path.unwrap() {
+        let mov = moveset[step];
+
+        entities.retain(|e| !e.overlaps(cursor.x, cursor.y)); // delete conflicting entities
+        entities.push(Entity { x: cursor.x, y: cursor.y, function: Function::Belt(mov.0) });
+
+        cursor = mov.1.transform_point(&cursor);
+    }
+
+}
+
+use nalgebra::geometry::{Point2, Translation2};
+type Point = Point2<i32>;
+type Translation = Translation2<i32>;
+
+fn mylee(entities: &[Entity], moveset: &[(Direction, Translation)], from: Point, to: Point) -> Option<Vec<usize>> {
+struct Mazewalker {
+    pos: Point,
+    history: Vec<usize>,
+}
+
+let mut blocked_coords = Vec::new();
+
+//let from = Point2::new(from.0, from.1);
+//let to = Point2::new(to.0, to.1);
+
+
+    // TODO: there's probably a much better algorithm based around some kind of cost heuristic
+    let mut walkers = vec![Mazewalker { pos: from, history: Vec::new() }];
+    while !walkers.is_empty() {
+    println!("{} walkers {} blockers", walkers.len(), blocked_coords.len());
+        for walker in std::mem::replace(&mut walkers, Vec::new()) {
+    println!("{} vs {}", walker.pos, to);
+            if walker.pos == to {
+                return Some(walker.history);
+            }
+            
+            for (i, &(_, trans)) in moveset.iter().enumerate() {
+                let goto = trans.transform_point(&walker.pos);
+                if entities.iter().any(|e| e.overlaps(goto.x, goto.y)) {
+                    // blocked with existing entity
+                    continue;
+                }
+                if blocked_coords.contains(&goto) {
+                    // blocked with temporary entity
+                    continue;
+                }
+                if goto.x.abs() > 30 || goto.y.abs() > 30 {
+                    continue;
+                }
+
+                blocked_coords.push(goto); // could be a hashset
+
+                let new_history = walker.history.iter().copied().chain(std::iter::once(i)).collect();
+                walkers.push(Mazewalker { pos: goto, history: new_history });
+            }
+        }
+    }
+    None
+}
+
+
 fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) {
     use leemaze::{AllowedMoves2D, maze_directions2d};
 
@@ -372,7 +469,8 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
 
     let mut rows2 = rows.iter().map(|x| x.iter().map(|&b| if b { 'X' } else { ' ' }).collect::<Vec<_>>()).collect::<Vec<_>>();
     let mut path2 = vec![(from.0 + 10, from.1 + 10)];
-    for &step in path.as_ref().unwrap() {
+    let mut path = path.unwrap();
+    for &step in &path {
         let prev = path2.last().unwrap();
         let mov = moveset.moves[step];
         let next = (prev.0 + mov.0, prev.1 + mov.1);
@@ -392,16 +490,95 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
         }
         println!();
     }
+    
+    
+    let mut undergrounded_path = Vec::new();
+    let mut cut_iter = path.iter();
+    while let Some(&current_direction) = cut_iter.next() {
+        let is_continuation = match undergrounded_path.last() {
+            Some(Ok(cd)) if *cd == current_direction => true,
+            Some(Err((cd, gap))) if *cd == current_direction => true,
+            _ => false,
+        };
+        let mut tail_length = cut_iter.clone().take_while(|&&d| d == current_direction).count();
+        if is_continuation {
+            tail_length += 1;
+        }
+        if tail_length > 2 {
+            let gap = std::cmp::min(tail_length - 2, 4) as i32;
+
+            for _ in 0..(gap + 2) {
+                cut_iter.next().unwrap();
+            }
+            
+        if !is_continuation {
+            undergrounded_path.push(Ok(current_direction)); // landing pad
+            }
+            undergrounded_path.push(Err((current_direction, gap))); // actual underground
+        } else {
+            undergrounded_path.push(Ok(current_direction));
+        }
+    }
+    let mut cursor = from;
+    for step in undergrounded_path {
+        let (x, y) = cursor;
+        entities.retain(|e| !e.overlaps(x, y)); // delete conflicting entities
+        
+        match step {
+        Ok(step) => {
+        entities.push(Entity { x, y, function: Function::Belt(moveset_dir[step]) });
+
+        let mov = moveset.moves[step];
+        cursor = (x + mov.0, y + mov.1);
+        }
+        Err((step, gap)) => {
+        
+        entities.push(Entity { x, y, function: Function::UndergroundBelt(moveset_dir[step], true) });
+        let mov = moveset.moves[step];
+        entities.push(Entity { x: x + mov.0*(gap+1), y: y + mov.1*(gap+1), function: Function::UndergroundBelt(moveset_dir[step], false) });
+
+        cursor = (x + mov.0 * (gap+2), y + mov.1 * (gap+2));
+        
+        }
+        }
+    }
+/*
+    let mut cut_iter = 0;
+    while cut_iter < path.len() {
+        let current_direction = path[cut_iter];
+        let run_length = path[cut_iter..].iter().take_while(|&&d| d == current_direction).count();
+        if run_length > 3 {
+            let gap = std::cmp::min(run_length - 3, 4);
+            let gap_start = cut_iter + 2;
+            path.drain(gap_start .. (gap_start + gap));
+            
+            cut_iter += 3;
+
+            for _ in 0..gap {
+            path.insert(gap_start, current_direction + 4);
+            cut_iter += 1;
+            }
+        } else {
+            cut_iter += 1;
+        }
+    }
 
     let mut cursor = from;
-    for step in path.unwrap() {
+    for &step in &path {
         let (x, y) = cursor;
+        if step >= 4 {
+        let mov = moveset.moves[step - 4];
+        cursor = (x + mov.0, y + mov.1);
+        continue;
+        }
+    
         entities.retain(|e| !e.overlaps(x, y)); // delete conflicting entities
         entities.push(Entity { x, y, function: Function::Belt(moveset_dir[step]) });
 
         let mov = moveset.moves[step];
         cursor = (x + mov.0, y + mov.1);
     }
+    */
 }
 
 fn main() {
