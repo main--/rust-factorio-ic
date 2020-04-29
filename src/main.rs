@@ -507,11 +507,12 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
         if tail_length > 2 {
             let gap = std::cmp::min(tail_length - 2, 4) as i32;
 
-            for _ in 0..(gap + 2) {
+            for _ in 0..(gap + 1) {
                 cut_iter.next().unwrap();
             }
             
         if !is_continuation {
+                cut_iter.next().unwrap();
             undergrounded_path.push(Ok(current_direction)); // landing pad
             }
             undergrounded_path.push(Err((current_direction, gap))); // actual underground
@@ -646,15 +647,17 @@ fn main() {
 
     render_blueprint_ascii(&pcb);
     lee_pathfinder(&mut pcb, (0, 15), (7, 12));
-/*
     render_blueprint_ascii(&pcb);
-    lee_pathfinder(&mut pcb, (0, 15), (7, 2));
+    lee_pathfinder(&mut pcb, (0, 16), (7, 2));
     render_blueprint_ascii(&pcb);
-    lee_pathfinder(&mut pcb, (0, 15), (22, 2));
+    lee_pathfinder(&mut pcb, (0, 17), (22, 2));
     render_blueprint_ascii(&pcb);
-    lee_pathfinder(&mut pcb, (0, 15), (37, 2));
-*/
+    lee_pathfinder(&mut pcb, (0, 18), (37, 2));
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 19), (22, 12));
 
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, (0, 20), (36, 12));
 
 //    lee_pathfinder(&pcb, (0, 2), (38, 10));
 
