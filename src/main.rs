@@ -10,12 +10,14 @@ enum Direction {
     Right,
 }
 
+#[derive(Clone)]
 enum Function {
     Assembler { recipe: String },
     Inserter { orientation: Direction, long_handed: bool },
     Belt(Direction),
     UndergroundBelt(Direction, bool),
 }
+#[derive(Clone)]
 struct Entity {
     x: i32,
     y: i32,
@@ -826,17 +828,7 @@ fn main() {
     let mut pcb = Vec::new();
     let mut needed_wires = vec![];
     let (lins, lout) = gridrender_subtree(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
-    try_wiring(pcb, needed_wires, lins, lout);
-}
 
-#[throws(())]
-fn try_wiring(mut pcb: Vec<Entity>, needed_wires: Vec<((i32, i32), (i32, i32))>, lins: Vec<(i32, i32)>, lout: (i32, i32)) {
-    println!("rendering {} wires", needed_wires.len());
-    for (from, to) in needed_wires.into_iter().rev() {
-    render_blueprint_ascii(&pcb);
-        lee_pathfinder(&mut pcb, from, to)?;
-    }
-    
     let gap_upper = 3;
     pcb.extend(vec![
         Entity { x: 0, y: -3 - gap_upper, function: Function::Belt(Direction::Up) },
@@ -846,16 +838,29 @@ fn try_wiring(mut pcb: Vec<Entity>, needed_wires: Vec<((i32, i32), (i32, i32))>,
         pcb.push(Entity { x: i as i32 + 1, y: -3 - gap_upper, function: Function::Belt(Direction::Down) });
         pcb.push(Entity { x: i as i32 + 1, y: -4 - gap_upper, function: Function::Belt(Direction::Down) });
     }
+    needed_wires.push((lout, (0, -3 - gap_upper)));
+    for (i, lin) in lins.into_iter().enumerate().rev() {
+        needed_wires.push(((i as i32 + 1, -3 - gap_upper), lin));
+    }
+
+    println!("rendering {} wires", needed_wires.len());
+
+    while let Err(i) = try_wiring(pcb.clone(), needed_wires.clone()) {
+        let ele = needed_wires.remove(i);
+        needed_wires.insert(0, ele);
+    }
+}
+
+#[throws(usize)]
+fn try_wiring(mut pcb: Vec<Entity>, needed_wires: Vec<((i32, i32), (i32, i32))>) {
+    for (i, (from, to)) in needed_wires.into_iter().enumerate() {
+        //render_blueprint_ascii(&pcb);
+        lee_pathfinder(&mut pcb, from, to).map_err(|()| i)?;
+    }
+    
 
     render_blueprint_ingame(&pcb);
-
-
     render_blueprint_ascii(&pcb);
-    lee_pathfinder(&mut pcb, lout, (0, -3 - gap_upper))?;
-    for (i, lin) in lins.into_iter().enumerate().rev() {
-    render_blueprint_ascii(&pcb);
-        lee_pathfinder(&mut pcb, (i as i32 + 1, -3 - gap_upper), lin)?;
-    }
 
     /*
 //    lee_pathfinder(&pcb, (10, 2), (25, 10));
