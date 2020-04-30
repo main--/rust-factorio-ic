@@ -58,4 +58,8 @@ impl Pcb {
     pub fn entities_mut(&mut self) -> &mut Vec<Entity> {
         &mut self.entities
     }
+
+    pub fn is_empty(&self, point: (i32, i32)) -> bool {
+        !self.entities().iter().any(|e| e.overlaps(point.0, point.1))
+    }
 }

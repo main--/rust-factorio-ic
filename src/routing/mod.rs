@@ -7,6 +7,7 @@ mod leemaze_lib;
 mod mylee;
 
 pub use leemaze_lib::lee_pathfinder;
+pub use mylee::lee_pathfinder_new as mylee;
 
 pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32)) -> Result<(), ()>) {
     while let Err(i) = try_wiring(pcb.clone(), needed_wires.clone(), pathfinder_fn) {
