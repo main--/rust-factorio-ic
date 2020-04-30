@@ -66,7 +66,7 @@ dependencies = [
 [[package]]
 name = "factorio-blueprint"
 version = "0.1.1"
-source = "git+https://github.com/main--/factorio-blueprint.git?branch=master#917304dc7b55c3d9c0733bca45a51a39de28f707"
+source = "git+https://github.com/coriolinus/factorio-blueprint?rev=0809254a78b1165a2d7e014db9e377bfe55b8ecc#0809254a78b1165a2d7e014db9e377bfe55b8ecc"
 dependencies = [
  "base64",
  "flate2",

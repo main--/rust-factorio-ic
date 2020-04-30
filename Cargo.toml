@@ -7,11 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-factorio-blueprint = "0.1.1"
+factorio-blueprint = { git = "https://github.com/coriolinus/factorio-blueprint", rev = "0809254a78b1165a2d7e014db9e377bfe55b8ecc" }
 rlua = "0.17"
 leemaze = "0.1.11"
 nalgebra = "0.21"
 fehler = "1.0"
 
-[patch.crates-io]
-factorio-blueprint = { git = "https://github.com/main--/factorio-blueprint.git?branch=master" }
