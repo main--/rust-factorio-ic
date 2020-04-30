@@ -767,7 +767,7 @@ fn gridrender_subtree(subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Vec
 		    Entity { x: sx + 5, y: sy + 3, function: Function::Belt(Direction::Right) },
 		    Entity { x: sx + 7, y: sy + 3, function: Function::Belt(Direction::Left) },
                 ]);
-                target_points.push((sx + 7, sy + 1));
+                target_points.push((sx + 5, sy + 3));
                 target_points.push((sx + 7, sy + 3));
 
                 if second_input_belt { unimplemented!(); }
