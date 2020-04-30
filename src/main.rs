@@ -1,5 +1,6 @@
 use std::iter::{self, FromIterator};
 use rlua::{Table, Lua, Result};
+use fehler::throws;
 
 #[derive(Clone, Copy)]
 enum Direction {
@@ -504,7 +505,7 @@ let mut blocked_coords = Vec::new();
     None
 }
 
-
+#[throws(())]
 fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) {
     use leemaze::{AllowedMoves2D, maze_directions2d};
 
@@ -545,9 +546,9 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
     
     let moveset = AllowedMoves2D {
         moves: vec![
+            (-1, 0),
             (1, 0),
             (0, 1),
-            (-1, 0),
             (0, -1),
 
 /*            // underground belts
@@ -561,15 +562,15 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
     println!("{:?}", path);
 
     let moveset_dir = [
+        Direction::Left,
         Direction::Right,
         Direction::Down,
-        Direction::Left,
         Direction::Up,
     ];
 
     let mut rows2 = rows.iter().map(|x| x.iter().map(|&b| if b { 'X' } else { ' ' }).collect::<Vec<_>>()).collect::<Vec<_>>();
     let mut path2 = vec![(from.0 + 10, from.1 + 10)];
-    let mut path = path.expect("No path to target found");
+    let mut path = path.ok_or(())?;
     for &step in &path {
         let prev = path2.last().unwrap();
         let mov = moveset.moves[step];
@@ -813,7 +814,7 @@ fn main() {
     
     println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
 
-    let tree = kirkmcdonald(&recipes, "logistic-science-pack", 0.1);
+    let tree = kirkmcdonald(&recipes, "logistic-science-pack", 0.75);
     let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
     println!("assemblers needed: {:?}", needed_assemblers);
     
@@ -825,11 +826,15 @@ fn main() {
     let mut pcb = Vec::new();
     let mut needed_wires = vec![];
     let (lins, lout) = gridrender_subtree(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
-    
+    try_wiring(pcb, needed_wires, lins, lout);
+}
+
+#[throws(())]
+fn try_wiring(mut pcb: Vec<Entity>, needed_wires: Vec<((i32, i32), (i32, i32))>, lins: Vec<(i32, i32)>, lout: (i32, i32)) {
     println!("rendering {} wires", needed_wires.len());
     for (from, to) in needed_wires.into_iter().rev() {
     render_blueprint_ascii(&pcb);
-        lee_pathfinder(&mut pcb, from, to);
+        lee_pathfinder(&mut pcb, from, to)?;
     }
     
     let gap_upper = 3;
@@ -842,11 +847,14 @@ fn main() {
         pcb.push(Entity { x: i as i32 + 1, y: -4 - gap_upper, function: Function::Belt(Direction::Down) });
     }
 
+    render_blueprint_ingame(&pcb);
+
+
     render_blueprint_ascii(&pcb);
-    lee_pathfinder(&mut pcb, lout, (0, -3 - gap_upper));
+    lee_pathfinder(&mut pcb, lout, (0, -3 - gap_upper))?;
     for (i, lin) in lins.into_iter().enumerate().rev() {
     render_blueprint_ascii(&pcb);
-        lee_pathfinder(&mut pcb, (i as i32 + 1, -3 - gap_upper), lin);
+        lee_pathfinder(&mut pcb, (i as i32 + 1, -3 - gap_upper), lin)?;
     }
 
     /*
