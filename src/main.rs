@@ -162,7 +162,13 @@ fn render_blueprint_ingame(entities: &[Entity]) {
                     "assembling-machine-2"
                 }
                 Function::Inserter { orientation, long_handed } => {
-                    direction = Some(orientation);
+                    // reverse direction because the game thinks about these differently than we do
+                    direction = Some(match orientation {
+                        Direction::Up => Direction::Down,
+                        Direction::Down => Direction::Up,
+                        Direction::Left => Direction::Right,
+                        Direction::Right => Direction::Left,
+                    });
                     if long_handed {
                         "long-handed-inserter"
                     } else {
