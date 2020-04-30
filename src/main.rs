@@ -136,6 +136,90 @@ impl AsciiCanvas {
 fn render_blueprint_ascii(entities: &[Entity]) {
     println!("{}", AsciiCanvas::build(entities).render());
 }
+fn render_blueprint_ingame(entities: &[Entity]) {
+    use factorio_blueprint::{BlueprintCodec, Container};
+    use factorio_blueprint::objects::*;
+    use std::convert::TryInto;
+
+    let container = Container::Blueprint(Blueprint {
+        item: "blueprint".to_owned(),
+        label: "very cool".to_owned(),
+        label_color: None,
+        version: 73015361519,
+        schedules: vec![],
+        icons: vec![Icon { index: OneBasedIndex::new(1).unwrap(), signal: SignalID { name: "electronic-circuit".to_owned(), type_: SignalIDType::Item } }],
+        tiles: vec![],
+        entities: entities.iter().enumerate().map(|(i, e)| {
+            let mut underground_type = None;
+            let mut recipe = None;
+            let mut direction = None;
+            let mut position = Position { x: (e.x as f64).try_into().unwrap(), y: (e.y as f64).try_into().unwrap() };
+            let name = match e.function {
+                Function::Assembler { recipe: ref r } => {
+                    recipe = Some(r.clone());
+                    position.x += 1.;
+                    position.y += 1.;
+                    "assembling-machine-2"
+                }
+                Function::Inserter { orientation, long_handed } => {
+                    direction = Some(orientation);
+                    if long_handed {
+                        "long-handed-inserter"
+                    } else {
+                        "inserter"
+                    }
+                }
+                Function::Belt(d) => {
+                    direction = Some(d);
+                    "transport-belt"
+                }
+                Function::UndergroundBelt(d, down) => {
+                    direction = Some(d);
+                    underground_type = Some(if down { EntityType::Input } else { EntityType::Output });
+                    "underground-belt"
+                }
+            };
+        
+            Entity {
+                entity_number: EntityNumber::new(i + 1).unwrap(),
+                name: name.to_owned(),
+                position,
+                direction: direction.map(|d| match d {
+                        Direction::Up => 0,
+                        Direction::Right => 2,
+                        Direction::Down => 4,
+                        Direction::Left => 6,
+                    }),
+                orientation: None,
+                connections: None,
+                control_behaviour: None,
+                items: None,
+                recipe,
+                bar: None,
+                inventory: None,
+                infinity_settings: None,
+                type_: underground_type,
+                input_priority: None,
+                output_priority: None,
+                filter: None,
+                filters: None,
+                filter_mode: None,
+                override_stack_size: None,
+                drop_position: None,
+                pickup_position: None,
+                request_filters: None,
+                request_from_buffers: None,
+                parameters: None,
+                alert_parameters: None,
+                auto_launch: None,
+                variation: None,
+                color: None,
+                station: None,
+            }
+        }).collect(),
+    });
+    println!("{}", BlueprintCodec::encode_string(&container).unwrap());
+}
 
 #[derive(Debug, Clone)]
 struct Recipe {
@@ -596,44 +680,83 @@ fn main() {
     let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as i32;
     println!("gridsize={}", gridsize);
     
+    let mut grid_i = 0;
     let mut pcb = Vec::new();
-    for (i, &a) in needed_assemblers.iter().enumerate() {
-        let i = i as i32;
-        let grid_x = i % gridsize;
-        let grid_y = i / gridsize;
+    let mut needed_wires = vec![];
+    let mut recipe_iter = vec![&tree];
+    while let Some(subtree) = recipe_iter.pop() {
+        recipe_iter.extend(&subtree.inputs);
         
-        let cell_size_x = 15;
-        let cell_size_y = 10;
-        
-        let startx = cell_size_x * grid_x;
-        let starty = cell_size_y * grid_y;
+        if subtree.building == "assembler" {
+            let howmany = subtree.how_many.ceil() as usize;
+            let mut prev = None;
+            for _ in 0..howmany {
+                let i = grid_i;
+		let grid_x = i % gridsize;
+		let grid_y = i / gridsize;
+		
+		let cell_size_x = 15;
+		let cell_size_y = 10;
+		
+		let startx = cell_size_x * grid_x;
+		let starty = cell_size_y * grid_y;
+		
+		let second_input_belt = match subtree.inputs.len() {
+		    1 | 2 => false,
+		    3 | 4 => true,
+		    _ => unreachable!(),
+		};
 
-        pcb.extend(vec![
-            Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: a.to_owned() } },
+		pcb.extend(vec![
+		    Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: subtree.output.clone() } },
 
 
-            // output belt
-            Entity { x: startx + 0, y: starty + 0, function: Function::Belt(Direction::Down) },
-            Entity { x: startx + 0, y: starty + 1, function: Function::Belt(Direction::Down) },
-            Entity { x: startx + 0, y: starty + 2, function: Function::Belt(Direction::Down) },
-            Entity { x: startx + 1, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
+		    // output belt
+		    Entity { x: startx + 0, y: starty + 0, function: Function::Belt(Direction::Down) },
+		    Entity { x: startx + 0, y: starty + 1, function: Function::Belt(Direction::Down) },
+		    Entity { x: startx + 0, y: starty + 2, function: Function::Belt(Direction::Down) },
+		    Entity { x: startx + 1, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
 
-            // input belt
-            Entity { x: startx + 6, y: starty + 0, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 6, y: starty + 1, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 6, y: starty + 2, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 5, y: starty + 0, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
-        ]);
-        
-        pcb.extend(vec![
-            // input belt 2
-            Entity { x: startx + 7, y: starty + 0, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 7, y: starty + 1, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 7, y: starty + 2, function: Function::Belt(Direction::Up) },
-            Entity { x: startx + 5, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: true } },
-        ]);
+		    // input belt
+		    Entity { x: startx + 6, y: starty + 0, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 6, y: starty + 1, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 6, y: starty + 2, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 5, y: starty + 0, function: Function::Inserter { orientation: Direction::Left, long_handed: false } },
+		]);
+		if let Some((sx, sy)) = prev {
+		    needed_wires.push(((sx + 0, sy + 2), (startx + 0, starty + 0)));
+		    needed_wires.push(((startx + 6, starty + 0), (sx + 6, sy + 2)));
+		}
+		
+		if second_input_belt {
+		pcb.extend(vec![
+		    // input belt 2
+		    Entity { x: startx + 7, y: starty + 0, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 7, y: starty + 1, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 7, y: starty + 2, function: Function::Belt(Direction::Up) },
+		    Entity { x: startx + 5, y: starty + 1, function: Function::Inserter { orientation: Direction::Left, long_handed: true } },
+		]);
+		if let Some((sx, sy)) = prev {
+		    needed_wires.push(((startx + 7, starty + 0), (sx + 7, sy + 2)));
+		}
+		}
+            
+                prev = Some((startx, starty));
+                grid_i += 1;
+            }
+            
+            let (sx, sy) = prev.unwrap();
+            // TODO: connect intra here
+        }
+//        subtree.output
     }
     
+    for (from, to) in needed_wires.into_iter().rev() {
+    render_blueprint_ascii(&pcb);
+        lee_pathfinder(&mut pcb, from, to);
+    }
+    
+    /*
 //    lee_pathfinder(&pcb, (10, 2), (25, 10));
     lee_pathfinder(&mut pcb, (30, 12), (21, 12));
     render_blueprint_ascii(&pcb);
@@ -660,8 +783,10 @@ fn main() {
     lee_pathfinder(&mut pcb, (0, 20), (36, 12));
 
 //    lee_pathfinder(&pcb, (0, 2), (38, 10));
+*/
 
     render_blueprint_ascii(&pcb);
+    render_blueprint_ingame(&pcb);
     /*
     render_blueprint_ascii(vec![
         Entity { x: 2, y: 0, function: Function::Assembler { recipe: "gears".to_owned() } },

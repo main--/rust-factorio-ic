@@ -66,8 +66,7 @@ dependencies = [
 [[package]]
 name = "factorio-blueprint"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9239c9726aa40d72ec1acb496c1d2564f131d77f744c77aa19537debfcd69c35"
+source = "git+https://github.com/main--/factorio-blueprint.git?branch=master#917304dc7b55c3d9c0733bca45a51a39de28f707"
 dependencies = [
  "base64",
  "flate2",

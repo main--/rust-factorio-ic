@@ -11,3 +11,6 @@ factorio-blueprint = "0.1.1"
 rlua = "0.17"
 leemaze = "0.1.11"
 nalgebra = "0.21"
+
+[patch.crates-io]
+factorio-blueprint = { git = "https://github.com/main--/factorio-blueprint.git?branch=master" }
