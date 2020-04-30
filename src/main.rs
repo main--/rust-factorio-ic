@@ -569,7 +569,7 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
 
     let mut rows2 = rows.iter().map(|x| x.iter().map(|&b| if b { 'X' } else { ' ' }).collect::<Vec<_>>()).collect::<Vec<_>>();
     let mut path2 = vec![(from.0 + 10, from.1 + 10)];
-    let mut path = path.unwrap();
+    let mut path = path.expect("No path to target found");
     for &step in &path {
         let prev = path2.last().unwrap();
         let mov = moveset.moves[step];
@@ -776,7 +776,19 @@ fn gridrender_subtree(subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Vec
                 target_points.push((sx + 5, sy + 3));
                 target_points.push((sx + 7, sy + 3));
 
-                if second_input_belt { unimplemented!(); }
+                if second_input_belt {
+                    if our_inputs.len() == 3 {
+                        target_points.push((sx + 7, sy + 2));
+                    } else {
+                pcb.extend(vec![
+		    Entity { x: sx + 8, y: sy + 2, function: Function::Belt(Direction::Left) },
+		    Entity { x: sx + 8, y: sy + 1, function: Function::Belt(Direction::Down) },
+		    Entity { x: sx + 8, y: sy + 3, function: Function::Belt(Direction::Up) },
+                ]);
+                target_points.push((sx + 8, sy + 2));
+                target_points.push((sx + 8, sy + 3));
+                    }
+                }
             }
             
             assert_eq!(our_inputs.len(), target_points.len());
@@ -814,6 +826,7 @@ fn main() {
     let mut needed_wires = vec![];
     let (lins, lout) = gridrender_subtree(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
     
+    println!("rendering {} wires", needed_wires.len());
     for (from, to) in needed_wires.into_iter().rev() {
     render_blueprint_ascii(&pcb);
         lee_pathfinder(&mut pcb, from, to);
