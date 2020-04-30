@@ -145,7 +145,7 @@ fn render_blueprint_ingame(entities: &[Entity]) {
         item: "blueprint".to_owned(),
         label: "very cool".to_owned(),
         label_color: None,
-        version: 73015361519,
+        version: 77310525440,
         schedules: vec![],
         icons: vec![Icon { index: OneBasedIndex::new(1).unwrap(), signal: SignalID { name: "electronic-circuit".to_owned(), type_: SignalIDType::Item } }],
         tiles: vec![],
@@ -510,11 +510,21 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
         let mut row = Vec::new();
         for x in -10..max_x {
             row.push((x,y) != to && entities.iter().any(|e| e.overlaps(x, y)));
+            if (x,y) == to {
+                print!("T");
+            } else if (x,y) == from {
+                print!("F");
+            } else if *row.last().unwrap() {
+                print!("X");
+            } else {
+                print!(" ");
+            }
         }
         rows.push(row);
+        println!();
     }
     
-//    /*
+    /*
     for row in &rows {
         for &x in row {
             if x {
@@ -525,7 +535,7 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
         }
         println!();
     }
-//    */
+    */
     
     let moveset = AllowedMoves2D {
         moves: vec![
@@ -541,7 +551,7 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
             (0, -6),*/
         ],
     };
-    let path = maze_directions2d(&rows, &moveset, &(from.0 as usize + 10, from.1 as usize + 10), &(to.0 as usize + 10, to.1 as usize + 10));
+    let path = maze_directions2d(&rows, &moveset, &((from.0 + 10) as usize, (from.1 + 10) as usize), &((to.0 + 10) as usize, (to.1 + 10) as usize));
     println!("{:?}", path);
 
     let moveset_dir = [
@@ -666,32 +676,37 @@ fn lee_pathfinder(entities: &mut Vec<Entity>, from: (i32, i32), to: (i32, i32)) 
     */
 }
 
-fn main() {
-    let recipes = read_recipes().unwrap();
-    println!("Parsed {} recipes", recipes.len());
-    
-    println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
 
-    let tree = kirkmcdonald(&recipes, "automation-science-pack", 0.75);
-    let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
-    println!("assemblers needed: {:?}", needed_assemblers);
+fn gridrender_subtree(subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Vec<Entity>, needed_wires: &mut Vec<((i32, i32), (i32, i32))>, gridsize: i32) -> Option<(Vec<(i32, i32)>, (i32, i32))> {
+    if subtree.building == "assembler" {
+    let mut upper_inputs = Vec::new();
+    let mut our_inputs = Vec::new();
     
-    // very simple and stupid grid placer
-    let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as i32;
-    println!("gridsize={}", gridsize);
+    for input in &subtree.inputs {
+    match gridrender_subtree(input, grid_i, pcb, needed_wires, gridsize) {
+    None => {
+    // becomes an input instead
+    our_inputs.push(None);
+    }
+    Some((ui, out)) => {
+    upper_inputs.extend(ui);
+    our_inputs.push(Some(out));
+    }
+    }
+    }
     
-    let mut grid_i = 0;
-    let mut pcb = Vec::new();
-    let mut needed_wires = vec![];
-    let mut recipe_iter = vec![&tree];
-    while let Some(subtree) = recipe_iter.pop() {
-        recipe_iter.extend(&subtree.inputs);
-        
-        if subtree.building == "assembler" {
+		assert_eq!(subtree.inputs.len(), our_inputs.len());
+		let second_input_belt = match subtree.inputs.len() {
+		    1 | 2 => false,
+		    3 | 4 => true,
+		    _ => unreachable!(),
+		};
+
+    
             let howmany = subtree.how_many.ceil() as usize;
             let mut prev = None;
             for _ in 0..howmany {
-                let i = grid_i;
+                let i = *grid_i;
 		let grid_x = i % gridsize;
 		let grid_y = i / gridsize;
 		
@@ -701,12 +716,6 @@ fn main() {
 		let startx = cell_size_x * grid_x;
 		let starty = cell_size_y * grid_y;
 		
-		let second_input_belt = match subtree.inputs.len() {
-		    1 | 2 => false,
-		    3 | 4 => true,
-		    _ => unreachable!(),
-		};
-
 		pcb.extend(vec![
 		    Entity { x: startx + 2, y: starty + 0, function: Function::Assembler { recipe: subtree.output.clone() } },
 
@@ -742,20 +751,83 @@ fn main() {
 		}
             
                 prev = Some((startx, starty));
-                grid_i += 1;
+                *grid_i += 1;
             }
             
             let (sx, sy) = prev.unwrap();
-            // TODO: connect intra here
+            let my_output = (sx + 0, sy + 2);
+            // connect intra here
+            let mut target_points = Vec::new();
+            if our_inputs.len() == 1 {
+                // single input, so no lane organization needed
+                target_points.push((sx + 6, sy + 2));
+            } else {
+                pcb.extend(vec![
+		    Entity { x: sx + 6, y: sy + 3, function: Function::Belt(Direction::Up) },
+		    Entity { x: sx + 5, y: sy + 3, function: Function::Belt(Direction::Right) },
+		    Entity { x: sx + 7, y: sy + 3, function: Function::Belt(Direction::Left) },
+                ]);
+                target_points.push((sx + 7, sy + 1));
+                target_points.push((sx + 7, sy + 3));
+
+                if second_input_belt { unimplemented!(); }
+            }
+            
+            assert_eq!(our_inputs.len(), target_points.len());
+            for (from, to) in our_inputs.into_iter().zip(target_points) {
+                match from {
+                    None => upper_inputs.push(to),
+                    Some(from) => needed_wires.push((from, to)),
+                }
+            }
+            
+            
+            Some((upper_inputs, my_output))
+        } else {
+        None
         }
-//        subtree.output
-    }
+}
+
+
+fn main() {
+    let recipes = read_recipes().unwrap();
+    println!("Parsed {} recipes", recipes.len());
+    
+    println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
+
+    let tree = kirkmcdonald(&recipes, "automation-science-pack", 0.75);
+    let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
+    println!("assemblers needed: {:?}", needed_assemblers);
+    
+    // very simple and stupid grid placer
+    let gridsize = (needed_assemblers.len() as f64).sqrt().ceil() as i32;
+    println!("gridsize={}", gridsize);
+    
+    let mut grid_i = 0;
+    let mut pcb = Vec::new();
+    let mut needed_wires = vec![];
+    let (lins, lout) = gridrender_subtree(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
     
     for (from, to) in needed_wires.into_iter().rev() {
     render_blueprint_ascii(&pcb);
         lee_pathfinder(&mut pcb, from, to);
     }
     
+
+    pcb.extend(vec![
+        Entity { x: 0, y: -3, function: Function::Belt(Direction::Up) },
+        Entity { x: 0, y: -4, function: Function::Belt(Direction::Up) },
+    ]);
+    for i in 0..lins.len() {
+        pcb.push(Entity { x: i as i32 + 1, y: -3, function: Function::Belt(Direction::Down) });
+        pcb.push(Entity { x: i as i32 + 1, y: -4, function: Function::Belt(Direction::Down) });
+    }
+
+    lee_pathfinder(&mut pcb, lout, (0, -3));
+    for (i, lin) in lins.into_iter().enumerate() {
+        lee_pathfinder(&mut pcb, (i as i32 + 1, -3), lin);
+    }
+
     /*
 //    lee_pathfinder(&pcb, (10, 2), (25, 10));
     lee_pathfinder(&mut pcb, (30, 12), (21, 12));
