@@ -813,7 +813,7 @@ fn main() {
     
     println!("{:#?}", kirkmcdonald(&recipes, "logistic-science-pack", 0.75));
 
-    let tree = kirkmcdonald(&recipes, "automation-science-pack", 0.75);
+    let tree = kirkmcdonald(&recipes, "logistic-science-pack", 0.1);
     let needed_assemblers: Vec<_> = needed_assemblers(&tree).collect();
     println!("assemblers needed: {:?}", needed_assemblers);
     
@@ -832,19 +832,21 @@ fn main() {
         lee_pathfinder(&mut pcb, from, to);
     }
     
-
+    let gap_upper = 3;
     pcb.extend(vec![
-        Entity { x: 0, y: -3, function: Function::Belt(Direction::Up) },
-        Entity { x: 0, y: -4, function: Function::Belt(Direction::Up) },
+        Entity { x: 0, y: -3 - gap_upper, function: Function::Belt(Direction::Up) },
+        Entity { x: 0, y: -4 - gap_upper, function: Function::Belt(Direction::Up) },
     ]);
     for i in 0..lins.len() {
-        pcb.push(Entity { x: i as i32 + 1, y: -3, function: Function::Belt(Direction::Down) });
-        pcb.push(Entity { x: i as i32 + 1, y: -4, function: Function::Belt(Direction::Down) });
+        pcb.push(Entity { x: i as i32 + 1, y: -3 - gap_upper, function: Function::Belt(Direction::Down) });
+        pcb.push(Entity { x: i as i32 + 1, y: -4 - gap_upper, function: Function::Belt(Direction::Down) });
     }
 
-    lee_pathfinder(&mut pcb, lout, (0, -3));
-    for (i, lin) in lins.into_iter().enumerate() {
-        lee_pathfinder(&mut pcb, (i as i32 + 1, -3), lin);
+    render_blueprint_ascii(&pcb);
+    lee_pathfinder(&mut pcb, lout, (0, -3 - gap_upper));
+    for (i, lin) in lins.into_iter().enumerate().rev() {
+    render_blueprint_ascii(&pcb);
+        lee_pathfinder(&mut pcb, (i as i32 + 1, -3 - gap_upper), lin);
     }
 
     /*
