@@ -4,19 +4,19 @@ use nalgebra::base::Vector2;
 use fehler::throws;
 use std::borrow::Borrow;
 
-type Point = Point2<i32>;
-type Vector = Vector2<i32>;
+pub type Point = Point2<i32>;
+pub type Vector = Vector2<i32>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Down,
     Left,
     Right,
 }
-const ALL_DIRECTIONS: [Direction; 4] = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
+pub const ALL_DIRECTIONS: [Direction; 4] = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
 impl Direction {
-    fn to_vector(&self) -> Vector {
+    pub fn to_vector(&self) -> Vector {
         match self {
             Direction::Up => Vector::new(0, -1),
             Direction::Down => Vector::new(0, 1),
@@ -35,8 +35,7 @@ pub enum Function {
 }
 #[derive(Debug, Clone)]
 pub struct Entity {
-    pub x: i32,
-    pub y: i32,
+    pub location: Point,
     pub function: Function,
 }
 impl Entity {
@@ -52,10 +51,10 @@ impl Entity {
     }
 
     pub fn overlaps(&self, x: i32, y: i32) -> bool {
-        (self.x <= x)
-            && (self.x + self.size_x() > x)
-            && (self.y <= y)
-            && (self.y + self.size_y() > y)
+        (self.location.x <= x)
+            && (self.location.x + self.size_x() > x)
+            && (self.location.y <= y)
+            && (self.location.y + self.size_y() > y)
     }
 }
 
@@ -79,10 +78,10 @@ impl Pcb {
         }
     }
     pub fn resize_grid(&mut self) {
-        let min_x = self.entities().map(|a| a.x).min().unwrap_or(0);
-        let max_x = self.entities().map(|a| a.x + a.size_x()).max().unwrap_or(0);
-        let min_y = self.entities().map(|a| a.y).min().unwrap_or(0);
-        let max_y = self.entities().map(|a| a.y + a.size_y()).max().unwrap_or(0);
+        let min_x = self.entities().map(|a| a.location.x).min().unwrap_or(0);
+        let max_x = self.entities().map(|a| a.location.x + a.size_x()).max().unwrap_or(0);
+        let min_y = self.entities().map(|a| a.location.y).min().unwrap_or(0);
+        let max_y = self.entities().map(|a| a.location.y + a.size_y()).max().unwrap_or(0);
 
         let min_vec = Vector::new(min_x, min_y);
         let max_vec = Vector::new(max_x, max_y);
@@ -115,7 +114,7 @@ impl Pcb {
         }
     }
     pub fn replace(&mut self, entity: impl Borrow<Entity>) {
-        self.remove_at((entity.borrow().x, entity.borrow().y));
+        self.remove_at((entity.borrow().location.x, entity.borrow().location.y));
         self.add(entity);
     }
     pub fn add(&mut self, entity: impl Borrow<Entity>) {
@@ -131,7 +130,7 @@ impl Pcb {
     #[throws(as Option)]
     fn place_entity_on_grid(&mut self, entity: &Entity, index: usize) {
         let tiles = (0..entity.size_x()).flat_map(|x| (0..entity.size_y()).map(move |y| Point::new(x, y)));
-        let tiles_origin = Vector::new(entity.x, entity.y) - self.grid_origin;
+        let tiles_origin = Vector::new(entity.location.x, entity.location.y) - self.grid_origin;
         let tiles = tiles.map(|t| t + tiles_origin);
         for tile in tiles {
             let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
@@ -179,15 +178,15 @@ mod test {
         let mut pcb = Pcb::new();
         pcb_invariant(&pcb);
 
-        pcb.add(&Entity { x: 42, y: 69, function: Function::Belt(Direction::Up) });
+        pcb.add(&Entity { location: Point::new(42, 69), function: Function::Belt(Direction::Up) });
         dbg!(&pcb);
         pcb_invariant(&pcb);
 
-        pcb.add(&Entity { x: 0, y: 0, function: Function::Belt(Direction::Up) });
+        pcb.add(&Entity { location: Point::new(0, 0), function: Function::Belt(Direction::Up) });
         dbg!(&pcb);
         pcb_invariant(&pcb);
 
-        pcb.add(&Entity { x: 13, y: 13, function: Function::Belt(Direction::Up) });
+        pcb.add(&Entity { location: Point::new(13, 13), function: Function::Belt(Direction::Up) });
         dbg!(&pcb);
         pcb_invariant(&pcb);
     }

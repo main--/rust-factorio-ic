@@ -70,8 +70,8 @@ pub fn blueprint(pcb: &Pcb) -> String {
                 let mut recipe = None;
                 let mut direction = None;
                 let mut position = Position {
-                    x: (e.x as f64).try_into().unwrap(),
-                    y: (e.y as f64).try_into().unwrap(),
+                    x: (e.location.x as f64).try_into().unwrap(),
+                    y: (e.location.y as f64).try_into().unwrap(),
                 };
                 let name = match e.function {
                     Function::Assembler { recipe: ref r } => {
@@ -152,10 +152,10 @@ struct AsciiCanvas {
 }
 impl AsciiCanvas {
     fn build<'a>(entities: impl Clone + Iterator<Item=&'a Entity>) -> Self {
-        let min_x = entities.clone().map(|x| x.x).min().unwrap_or(0);
-        let min_y = entities.clone().map(|x| x.y).min().unwrap_or(0);
-        let max_x = entities.clone().map(|x| x.x + x.size_x()).max().unwrap_or(0);
-        let max_y = entities.clone().map(|x| x.y + x.size_y()).max().unwrap_or(0);
+        let min_x = entities.clone().map(|x| x.location.x).min().unwrap_or(0);
+        let min_y = entities.clone().map(|x| x.location.y).min().unwrap_or(0);
+        let max_x = entities.clone().map(|x| x.location.x + x.size_x()).max().unwrap_or(0);
+        let max_y = entities.clone().map(|x| x.location.y + x.size_y()).max().unwrap_or(0);
 
         let offset_x = -min_x;
         let offset_y = -min_y;
@@ -172,15 +172,15 @@ impl AsciiCanvas {
         for e in entities {
             match e.function {
                 Function::Assembler { ref recipe } => {
-                    canvas.set(e.x + 0, e.y + 0, '┌');
-                    canvas.set(e.x + 1, e.y + 0, '─');
-                    canvas.set(e.x + 2, e.y + 0, '┐');
-                    canvas.set(e.x + 0, e.y + 1, '│');
-                    canvas.set(e.x + 1, e.y + 1, recipe.to_uppercase().chars().next().unwrap());
-                    canvas.set(e.x + 2, e.y + 1, '│');
-                    canvas.set(e.x + 0, e.y + 2, '└');
-                    canvas.set(e.x + 1, e.y + 2, '─');
-                    canvas.set(e.x + 2, e.y + 2, '┘');
+                    canvas.set(e.location.x + 0, e.location.y + 0, '┌');
+                    canvas.set(e.location.x + 1, e.location.y + 0, '─');
+                    canvas.set(e.location.x + 2, e.location.y + 0, '┐');
+                    canvas.set(e.location.x + 0, e.location.y + 1, '│');
+                    canvas.set(e.location.x + 1, e.location.y + 1, recipe.to_uppercase().chars().next().unwrap());
+                    canvas.set(e.location.x + 2, e.location.y + 1, '│');
+                    canvas.set(e.location.x + 0, e.location.y + 2, '└');
+                    canvas.set(e.location.x + 1, e.location.y + 2, '─');
+                    canvas.set(e.location.x + 2, e.location.y + 2, '┘');
                 },
                 Function::Inserter { orientation: d, long_handed } => {
                     let symbol = if long_handed {
@@ -198,7 +198,7 @@ impl AsciiCanvas {
                             Direction::Right => '→',
                         }
                     };
-                    canvas.set(e.x, e.y, symbol);
+                    canvas.set(e.location.x, e.location.y, symbol);
                 },
                 Function::Belt(d) => {
                     let symbol = match d {
@@ -207,7 +207,7 @@ impl AsciiCanvas {
                         Direction::Left => '⍇',
                         Direction::Right => '⍈',
                     };
-                    canvas.set(e.x, e.y, symbol);
+                    canvas.set(e.location.x, e.location.y, symbol);
                 },
                 Function::UndergroundBelt(d, down) => {
                     let symbol = if down {
@@ -225,7 +225,7 @@ impl AsciiCanvas {
                             Direction::Right => '⍃',
                         }
                     };
-                    canvas.set(e.x, e.y, symbol);
+                    canvas.set(e.location.x, e.location.y, symbol);
                 },
             }
         }

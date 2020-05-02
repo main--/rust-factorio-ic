@@ -1,6 +1,6 @@
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
-use crate::pcb::Pcb;
+use crate::pcb::{Pcb, Point};
 use crate::recipe::Category;
 
 pub fn gridrender_subtree(
@@ -46,29 +46,26 @@ pub fn gridrender_subtree(
 
             pcb.add_all(&[
                 Entity {
-                    x: startx + 2,
-                    y: starty + 0,
+                    location: Point::new(startx + 2, starty + 0),
                     function: Function::Assembler { recipe: subtree.output.clone() },
                 },
                 // output belt
-                Entity { x: startx + 0, y: starty + 0, function: Function::Belt(Direction::Down) },
-                Entity { x: startx + 0, y: starty + 1, function: Function::Belt(Direction::Down) },
-                Entity { x: startx + 0, y: starty + 2, function: Function::Belt(Direction::Down) },
+                Entity { location: Point::new(startx + 0, starty + 0), function: Function::Belt(Direction::Down) },
+                Entity { location: Point::new(startx + 0, starty + 1), function: Function::Belt(Direction::Down) },
+                Entity { location: Point::new(startx + 0, starty + 2), function: Function::Belt(Direction::Down) },
                 Entity {
-                    x: startx + 1,
-                    y: starty + 1,
+                    location: Point::new(startx + 1, starty + 1),
                     function: Function::Inserter {
                         orientation: Direction::Left,
                         long_handed: false,
                     },
                 },
                 // input belt
-                Entity { x: startx + 6, y: starty + 0, function: Function::Belt(Direction::Up) },
-                Entity { x: startx + 6, y: starty + 1, function: Function::Belt(Direction::Up) },
-                Entity { x: startx + 6, y: starty + 2, function: Function::Belt(Direction::Up) },
+                Entity { location: Point::new(startx + 6, starty + 0), function: Function::Belt(Direction::Up) },
+                Entity { location: Point::new(startx + 6, starty + 1), function: Function::Belt(Direction::Up) },
+                Entity { location: Point::new(startx + 6, starty + 2), function: Function::Belt(Direction::Up) },
                 Entity {
-                    x: startx + 5,
-                    y: starty + 0,
+                    location: Point::new(startx + 5, starty + 0),
                     function: Function::Inserter {
                         orientation: Direction::Left,
                         long_handed: false,
@@ -84,23 +81,19 @@ pub fn gridrender_subtree(
                 pcb.add_all(&[
                     // input belt 2
                     Entity {
-                        x: startx + 7,
-                        y: starty + 0,
+                        location: Point::new(startx + 7, starty + 0),
                         function: Function::Belt(Direction::Up),
                     },
                     Entity {
-                        x: startx + 7,
-                        y: starty + 1,
+                        location: Point::new(startx + 7, starty + 1),
                         function: Function::Belt(Direction::Up),
                     },
                     Entity {
-                        x: startx + 7,
-                        y: starty + 2,
+                        location: Point::new(startx + 7, starty + 2),
                         function: Function::Belt(Direction::Up),
                     },
                     Entity {
-                        x: startx + 5,
-                        y: starty + 1,
+                        location: Point::new(startx + 5, starty + 1),
                         function: Function::Inserter {
                             orientation: Direction::Left,
                             long_handed: true,
@@ -125,9 +118,9 @@ pub fn gridrender_subtree(
             target_points.push((sx + 6, sy + 2));
         } else {
             pcb.add_all(&[
-                Entity { x: sx + 6, y: sy + 3, function: Function::Belt(Direction::Up) },
-                Entity { x: sx + 5, y: sy + 3, function: Function::Belt(Direction::Right) },
-                Entity { x: sx + 7, y: sy + 3, function: Function::Belt(Direction::Left) },
+                Entity { location: Point::new(sx + 6, sy + 3), function: Function::Belt(Direction::Up) },
+                Entity { location: Point::new(sx + 5, sy + 3), function: Function::Belt(Direction::Right) },
+                Entity { location: Point::new(sx + 7, sy + 3), function: Function::Belt(Direction::Left) },
             ]);
             target_points.push((sx + 5, sy + 3));
             target_points.push((sx + 7, sy + 3));
@@ -137,9 +130,9 @@ pub fn gridrender_subtree(
                     target_points.push((sx + 7, sy + 2));
                 } else {
                     pcb.add_all(&[
-                        Entity { x: sx + 8, y: sy + 2, function: Function::Belt(Direction::Left) },
-                        Entity { x: sx + 8, y: sy + 1, function: Function::Belt(Direction::Down) },
-                        Entity { x: sx + 8, y: sy + 3, function: Function::Belt(Direction::Up) },
+                        Entity { location: Point::new(sx + 8, sy + 2), function: Function::Belt(Direction::Left) },
+                        Entity { location: Point::new(sx + 8, sy + 1), function: Function::Belt(Direction::Down) },
+                        Entity { location: Point::new(sx + 8, sy + 3), function: Function::Belt(Direction::Up) },
                     ]);
                     target_points.push((sx + 8, sy + 2));
                     target_points.push((sx + 8, sy + 3));

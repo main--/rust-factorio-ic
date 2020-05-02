@@ -1,6 +1,6 @@
 use std::env;
 
-use crate::pcb::{Entity, Function, Direction, Pcb, NeededWires};
+use crate::pcb::{Entity, Function, Direction, Pcb, NeededWires, Point};
 
 mod recipe;
 mod kirkmcdonald;
@@ -33,18 +33,16 @@ fn main() {
 
     let gap_upper = 3;
     pcb.add_all(&[
-        Entity { x: 0, y: -3 - gap_upper, function: Function::Belt(Direction::Up) },
-        Entity { x: 0, y: -4 - gap_upper, function: Function::Belt(Direction::Up) },
+        Entity { location: Point::new(0, -3 - gap_upper), function: Function::Belt(Direction::Up) },
+        Entity { location: Point::new(0, -4 - gap_upper), function: Function::Belt(Direction::Up) },
     ]);
     for i in 0..lins.len() {
         pcb.add(Entity {
-            x: i as i32 + 1,
-            y: -3 - gap_upper,
+            location: Point::new(i as i32 + 1, -3 - gap_upper),
             function: Function::Belt(Direction::Down),
         });
         pcb.add(Entity {
-            x: i as i32 + 1,
-            y: -4 - gap_upper,
+            location: Point::new(i as i32 + 1, -4 - gap_upper),
             function: Function::Belt(Direction::Down),
         });
     }
@@ -55,6 +53,6 @@ fn main() {
 
     println!("rendering {} wires", needed_wires.len());
 
-    //routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder);
+    // routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder);
     routing::route(&mut pcb, &mut needed_wires, routing::mylee);
 }
