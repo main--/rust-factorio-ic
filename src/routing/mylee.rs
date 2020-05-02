@@ -69,6 +69,8 @@ fn mylee(
             for (i, &(_, trans)) in moveset.iter().enumerate() {
                 let goto = trans.transform_point(&walker.pos);
                 if goto == to {
+                    let mut walker = walker;
+                    walker.history.push(i);
                     return Some(walker.history);
                 }
                 if !pcb.is_empty((goto.x, goto.y)) {
