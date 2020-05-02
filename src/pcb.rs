@@ -14,6 +14,16 @@ pub enum Direction {
     Left,
     Right,
 }
+impl Direction {
+    fn vec(&self) -> Vector {
+        match self {
+            Direction::Up => Vector::new(0, -1),
+            Direction::Down => Vector::new(0, 1),
+            Direction::Left => Vector::new(-1, 0),
+            Direction::Right => Vector::new(1, 0),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Function {
