@@ -2,7 +2,7 @@ use fehler::throws;
 
 use crate::pcb::{Pcb, Direction, Point, ALL_DIRECTIONS};
 use crate::render;
-use crate::routing::{apply_lee_path, RoutingOptimizations};
+use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
 
 #[throws(())]
 pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: RoutingOptimizations) {
@@ -33,7 +33,8 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: Routin
     ).ok_or(())?;
 
 //    println!("{}", render::ascii_routed_wire(&rows, &path2));
-    let path = path.into_iter().map(|i| ALL_DIRECTIONS[i]);
+    let path = path.into_iter().map(|i| Belt::Normal(ALL_DIRECTIONS[i]));
+    let path = insert_underground_belts(path);
     apply_lee_path(pcb, Point::new(from.0, from.1), path)
 
 }

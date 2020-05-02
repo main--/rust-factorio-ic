@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 pub type Point = Point2<i32>;
 pub type Vector = Vector2<i32>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     Up,
     Down,
@@ -22,6 +22,20 @@ impl Direction {
             Direction::Down => Vector::new(0, 1),
             Direction::Left => Vector::new(-1, 0),
             Direction::Right => Vector::new(1, 0),
+        }
+    }
+    pub fn is_same_axis(&self, other: Direction) -> bool {
+        match self {
+            Direction::Up | Direction::Down => other == Direction::Up || other == Direction::Down,
+            Direction::Left | Direction::Right => other == Direction::Left || other == Direction::Right,
+        }
+    }
+    pub fn opposite_direction(&self) -> Direction {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            Direction::Left => Direction::Right,
+            Direction::Right => Direction::Left,
         }
     }
 }
@@ -158,6 +172,12 @@ impl Pcb {
             //       prevents us from ever re-using the gaps
             self.entities[i] = None;
         }
+    }
+    pub fn entity_at(&self, point: Point) -> Option<&Entity> {
+        let grid_idx = point - self.grid_origin;
+        let idx = self.grid.get((grid_idx.x as usize, grid_idx.y as usize))?;
+        let idx = idx.checked_sub(1)?;
+        self.entities.get(idx)?.as_ref()
     }
     pub fn is_blocked(&self, point: Point) -> bool {
         let grid_idx = point - self.grid_origin;

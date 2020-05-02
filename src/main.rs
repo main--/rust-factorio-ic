@@ -17,6 +17,7 @@ fn main() {
     let recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
 
+    // let tree = kirkmcdonald::kirkmcdonald(&recipes, "automation-science-pack", 0.1);
     let tree = kirkmcdonald::kirkmcdonald(&recipes, "chemical-science-pack", 0.1);
     println!("{:#?}", tree);
     let needed_assemblers: Vec<_> = kirkmcdonald::needed_assemblers(&tree).collect();
@@ -55,7 +56,9 @@ fn main() {
     println!("rendering {} wires", needed_wires.len());
 
     // routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder, RoutingOptimizations::empty());
-    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
+    // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
+    // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::empty());
+    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
 
     println!("{}", render::blueprint(&pcb));
     println!("{}", render::ascii(&pcb));

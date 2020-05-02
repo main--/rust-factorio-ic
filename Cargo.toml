@@ -15,6 +15,7 @@ fehler = "1.0"
 ndarray = "0.13"
 rand = "0.7"
 bitflags = "1.2.1"
+either = "1.5.3"
 
 [features]
 render_wiring_steps = []

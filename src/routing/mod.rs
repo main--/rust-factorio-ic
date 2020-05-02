@@ -14,6 +14,7 @@ use rand::prelude::*;
 bitflags::bitflags! {
     pub struct RoutingOptimizations: u64 {
         const MYLEE_PREFER_SAME_DIRECTION = 0b00000001;
+        const MYLEE_USE_UNDERGROUND_BELTS = 0b00000010;
     }
 }
 
@@ -72,6 +73,7 @@ fn try_wiring(mut pcb: Pcb,
     pcb
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 enum Belt {
     Normal(Direction),
     Underground {
@@ -79,32 +81,53 @@ enum Belt {
         gap: i32,
     },
 }
-
-fn apply_lee_path<I: IntoIterator<Item = Direction>>(pcb: &mut Pcb, from: Point, path: I) where I::IntoIter: Clone {
-    let mut undergrounded_path = Vec::new();
-    let mut path = path.into_iter();
-    while let Some(current_direction) = path.next() {
-        let is_same_direction = match undergrounded_path.last() {
-            Some(Belt::Normal(dir)) => *dir == current_direction,
-            Some(Belt::Underground { dir, .. }) => *dir == current_direction,
-            None => false,
-        };
-        // number of tiles including current going into the same direction
-        let tail_length = path.clone().take_while(|&d| d == current_direction).count() + 1;
-
-        if !is_same_direction || tail_length <= 2 {
-            undergrounded_path.push(Belt::Normal(current_direction));
-        } else {
-            // insert underground belt
-            let gap = std::cmp::min(tail_length - 2, 4) as i32;
-            undergrounded_path.push(Belt::Underground { dir: current_direction, gap });
-            // skip belts we're replacing
-            path.nth(gap.try_into().unwrap()).unwrap();
+impl Belt {
+    fn direction(&self) -> Direction {
+        match *self {
+            Belt::Normal(dir) => dir,
+            Belt::Underground { dir, .. } => dir,
         }
     }
+}
 
+fn insert_underground_belts<I: IntoIterator<Item = Belt>>(path: I) -> Vec<Belt> where I::IntoIter: Clone {
+    let mut undergrounded_path = Vec::new();
+    let mut path = path.into_iter();
+    while let Some(belt) = path.next() {
+        match belt {
+            Belt::Underground { .. } => undergrounded_path.push(belt),
+            Belt::Normal(_) => {
+                // check if we could underground it
+                let is_same_direction = match undergrounded_path.last() {
+                    Some(Belt::Normal(dir)) => *dir == belt.direction(),
+                    Some(Belt::Underground { dir, .. }) => *dir == belt.direction(),
+                    None => false,
+                };
+                // number of tiles including current going into the same direction
+                let tail_length = path.clone()
+                    .take_while(|&belt| match belt {
+                        Belt::Normal(dir) if dir == belt.direction() => true,
+                        _ => false,
+                    }).count() + 1;
+
+                if !is_same_direction || tail_length <= 2 {
+                    undergrounded_path.push(Belt::Normal(belt.direction()));
+                } else {
+                    // insert underground belt
+                    let gap = std::cmp::min(tail_length - 2, 4) as i32;
+                    undergrounded_path.push(Belt::Underground { dir: belt.direction(), gap });
+                    // skip belts we're replacing
+                    path.nth(gap.try_into().unwrap()).unwrap();
+                }
+            }
+        }
+    }
+    undergrounded_path
+}
+
+fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut Pcb, from: Point, path: I) where I::IntoIter: Clone {
     let mut cursor = from;
-    for belt in undergrounded_path {
+    for belt in path {
         match belt {
             Belt::Normal(dir) => {
                 pcb.replace(Entity { location: cursor, function: Function::Belt(dir) });

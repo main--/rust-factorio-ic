@@ -64,6 +64,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
+
+[[package]]
 name = "factorio-blueprint"
 version = "0.1.1"
 source = "git+https://github.com/coriolinus/factorio-blueprint?rev=0809254a78b1165a2d7e014db9e377bfe55b8ecc#0809254a78b1165a2d7e014db9e377bfe55b8ecc"
@@ -81,6 +87,7 @@ name = "factorio-ic"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "either",
  "factorio-blueprint",
  "fehler",
  "leemaze",
