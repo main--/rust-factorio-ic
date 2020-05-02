@@ -18,14 +18,22 @@ bitflags::bitflags! {
 }
 
 pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
+    // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
     let mut rng = StdRng::from_seed([0; 32]);
+    let mut total_tries = 0;
+    let mut total_depth = 0;
 
     loop {
         match try_wiring(pcb.clone(), &needed_wires, pathfinder_fn, optimizations) {
             Ok(p) => {
                 *pcb = p;
+                total_tries += 1;
+                total_depth += needed_wires.len();
+                println!("total tries: {}", total_tries);
+                println!("total depth: {}", total_depth);
+                println!("averg depth: {:2}", total_depth as f32 / total_tries as f32);
                 return;
             }
             Err(i) => {
@@ -39,6 +47,8 @@ pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&m
                     needed_wires.shuffle(&mut rng);
                 }
 
+                total_depth += i + 1;
+                total_tries += 1;
                 panic += 1;
                 println!("panic={}", panic);
             }
