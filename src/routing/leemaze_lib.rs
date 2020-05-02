@@ -72,7 +72,7 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     while let Some(&current_direction) = cut_iter.next() {
         let is_continuation = match undergrounded_path.last() {
             Some(Ok(cd)) if *cd == current_direction => true,
-            Some(Err((cd, gap))) if *cd == current_direction => true,
+            Some(Err((cd, _))) if *cd == current_direction => true,
             _ => false,
         };
         let mut tail_length = cut_iter.clone().take_while(|&&d| d == current_direction).count();

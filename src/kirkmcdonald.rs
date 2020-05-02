@@ -8,7 +8,7 @@ pub struct ProductionGraph {
     pub per_second: f64,
 
     pub how_many: f64,
-    pub building: &'static str,
+    pub building: Option<Category>,
 
     // has no input nodes if this node "produces" raw ores, i.e. is an external input
     pub inputs: Vec<ProductionGraph>,
@@ -23,11 +23,12 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
         let results_per_second = results_per_step / step_duration;
         let how_many_concurrents = desired_per_second / results_per_second;
 
-        let (how_many, building) = match recipe.category {
-            Category::Assembler => (how_many_concurrents / 0.75, "assembler"),
-            Category::Furnace => (how_many_concurrents / 2., "furnace"),
-            _ => (-1., "<unimplemented>"),
+        let building_base_speed = match recipe.category {
+            Category::Assembler => 0.75,
+            Category::Furnace => 2.,
+            _ => -1., // unimplemented
         };
+        let how_many = how_many_concurrents / building_base_speed;
 
         let inputs = recipe
             .ingredients
@@ -42,7 +43,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
             per_second: desired_per_second,
 
             how_many,
-            building,
+            building: Some(recipe.category),
 
             inputs,
         }
@@ -52,7 +53,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
             per_second: desired_per_second,
 
             how_many: -1.,
-            building: "<input>",
+            building: None,
 
             inputs: vec![],
         }
@@ -61,7 +62,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
 
 pub fn needed_assemblers<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item = &'a str> + 'a> {
     let upstream = g.inputs.iter().flat_map(needed_assemblers);
-    if g.building == "assembler" {
+    if g.building == Some(Category::Assembler) {
         println!("i={}", g.inputs.len());
         Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
     } else {

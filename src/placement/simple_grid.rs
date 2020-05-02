@@ -1,12 +1,13 @@
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
 use crate::pcb::Pcb;
+use crate::recipe::Category;
 
 pub fn gridrender_subtree(
     subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Pcb,
     needed_wires: &mut Vec<((i32, i32), (i32, i32))>, gridsize: i32,
 ) -> Option<(Vec<(i32, i32)>, (i32, i32))> {
-    if subtree.building == "assembler" {
+    if subtree.building == Some(Category::Assembler) {
         let mut upper_inputs = Vec::new();
         let mut our_inputs = Vec::new();
 

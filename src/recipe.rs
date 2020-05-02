@@ -10,7 +10,7 @@ pub struct Recipe {
     pub crafting_time: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
     Assembler,
 
