@@ -1,6 +1,7 @@
 use ndarray::{s, Array2};
 use nalgebra::geometry::Point2;
 use nalgebra::base::Vector2;
+use fnv::FnvHashMap;
 use fehler::throws;
 use std::borrow::Borrow;
 
@@ -92,45 +93,15 @@ pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
 #[derive(Debug, Clone)]
 pub struct Pcb {
     entities: Vec<Option<Entity>>,
-
-    grid_origin: Vector,
-    grid: Array2<usize>, // contains index in enities + 1 (zero is none)
+    grid: FnvHashMap<Point, usize>,
 }
 
 impl Pcb {
     pub fn new() -> Pcb {
         Pcb {
             entities: Vec::new(),
-
-            grid_origin: Vector::new(0, 0),
-            grid: Array2::zeros((0, 0)),
+            grid: FnvHashMap::default(),
         }
-    }
-    pub fn resize_grid(&mut self) {
-        let entity_rect = self.entity_rect();
-
-        let min_vec = entity_rect.a.coords;
-        let max_vec = entity_rect.b.coords;
-        let used_rect = max_vec - min_vec;
-        let desired_space = used_rect * 2;
-
-        let old_shape = self.grid.shape();
-        let old_space = Vector::new(old_shape[0] as i32, old_shape[1] as i32);
-        assert!(old_space != desired_space); // make sure we actually DO something
-
-        let mut newgrid = Array2::zeros((desired_space.x as usize, desired_space.y as usize));
-        let new_origin = min_vec - (used_rect / 2);
-        let old_origin = self.grid_origin;
-        let transform = -(new_origin - old_origin);
-        let end_transform = transform + old_space;
-
-        //println!("{} {} {} {} {:?} {} {} {} {}", min_vec, max_vec, used_rect, desired_space, old_shape, new_origin, old_origin, transform, end_transform);
-        if transform != end_transform {
-            newgrid.slice_mut(s![transform[0]..end_transform[0], transform[1]..end_transform[1]]).assign(&self.grid);
-        }
-
-        self.grid_origin = new_origin;
-        self.grid = newgrid;
     }
     pub fn add_all<I>(&mut self, iter: I)
         where I: IntoIterator, I::Item: Borrow<Entity> {
@@ -146,23 +117,20 @@ impl Pcb {
     pub fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
         let index = self.entities.len();
-        self.entities.push(Some(entity.clone()));
 
-        while self.place_entity_on_grid(entity, index).is_none() {
-            self.resize_grid();
-        }
+        self.entities.push(Some(entity.clone()));
+        self.place_entity_on_grid(entity, index);
     }
 
-    #[throws(as Option)]
+    fn entity_tiles<'a>(entity: &'a Entity) -> impl Iterator<Item=Point> + 'a {
+        let tiles = (0..entity.size_x()).flat_map(move |x| (0..entity.size_y()).map(move |y| Point::new(x, y)));
+        let tiles_origin = entity.location.coords;
+        tiles.map(move |t| t + tiles_origin)
+    }
     fn place_entity_on_grid(&mut self, entity: &Entity, index: usize) {
-        let tiles = (0..entity.size_x()).flat_map(|x| (0..entity.size_y()).map(move |y| Point::new(x, y)));
-        let tiles_origin = Vector::new(entity.location.x, entity.location.y) - self.grid_origin;
-        let tiles = tiles.map(|t| t + tiles_origin);
-        for tile in tiles {
-            let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
-            let entities = &self.entities;
-            assert!((*tile).checked_sub(1).and_then(|i| entities[i].as_ref()).is_none(), "Conflicting entities");
-            *tile = index + 1;
+        for tile in Pcb::entity_tiles(entity) {
+            let prev = self.grid.insert(tile, index);
+            assert!(prev.is_none());
         }
     }
     pub fn entities<'a>(&'a self) -> impl Iterator<Item=&'a Entity> + Clone {
@@ -170,22 +138,17 @@ impl Pcb {
     }
 
     pub fn remove_at(&mut self, point: (i32, i32)) {
-        let grid_idx = Vector::new(point.0, point.1) - self.grid_origin;
-        if let Some(i) = self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)) {
-            // TODO: this leaves the index values in the grid dangling, which is not a problem but also
-            //       prevents us from ever re-using the gaps
-            self.entities[i] = None;
+        if let Some(i) = self.grid.remove(&Point::new(point.0, point.1)) {
+            if let Some(e) = std::mem::replace(&mut self.entities[i], None) {
+                for tile in Pcb::entity_tiles(&e) { self.grid.remove(&tile); }
+            }
         }
     }
     pub fn entity_at(&self, point: Point) -> Option<&Entity> {
-        let grid_idx = point - self.grid_origin;
-        let idx = self.grid.get((grid_idx.x as usize, grid_idx.y as usize))?;
-        let idx = idx.checked_sub(1)?;
-        self.entities.get(idx)?.as_ref()
+        self.grid.get(&point).and_then(|&i| self.entities[i].as_ref())
     }
     pub fn is_blocked(&self, point: Point) -> bool {
-        let grid_idx = point - self.grid_origin;
-        self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).and_then(|i| self.entities[i].as_ref()).is_some()
+        self.entity_at(point).is_some()
     }
     pub fn entity_rect(&self) -> Rect {
         if self.entities.is_empty() {
@@ -207,13 +170,6 @@ impl Pcb {
         Rect {
             a: Point::new(min_x, min_y),
             b: Point::new(max_x, max_y),
-        }
-    }
-    pub fn grid_capacity(&self) -> Rect {
-        let (size_x, size_y) = self.grid.dim();
-        Rect {
-            a: Point { coords: self.grid_origin },
-            b: Point::new(size_x as i32 - self.grid_origin.x, size_y as i32 - self.grid_origin.y),
         }
     }
 }
