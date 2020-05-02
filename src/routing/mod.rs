@@ -9,11 +9,26 @@ mod mylee;
 pub use leemaze_lib::lee_pathfinder;
 pub use mylee::mylee as mylee;
 use std::convert::TryInto;
+use rand::prelude::*;
 
 pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32)) -> Result<(), ()>) {
+    let mut panic = 0;
+    let mut temperature = 20;
+    let mut rng = StdRng::from_seed([0; 32]);
+
     while let Err(i) = try_wiring(pcb.clone(), &needed_wires, pathfinder_fn) {
         let ele = needed_wires.remove(i);
         needed_wires.insert(0, ele);
+
+        if panic == temperature {
+            panic = 0;
+            temperature += 1;
+
+            needed_wires.shuffle(&mut rng);
+        }
+
+        panic += 1;
+        println!("panic={}", panic);
     }
 }
 
@@ -24,8 +39,8 @@ fn try_wiring(mut pcb: Pcb, needed_wires: &NeededWires, pathfinder_fn: fn(&mut P
         pathfinder_fn(&mut pcb, from, to).map_err(|()| i)?;
     }
 
-    println!("{}", render::ascii(&pcb));
-    println!("{}", render::blueprint(&pcb));
+//    println!("{}", render::ascii(&pcb));
+//    println!("{}", render::blueprint(&pcb));
 }
 
 enum Belt {

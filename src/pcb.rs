@@ -92,13 +92,9 @@ impl Pcb {
     }
     pub fn resize_grid(&mut self) {
         let entity_rect = self.entity_rect();
-        let min_x = entity_rect.a.x;
-        let min_y = entity_rect.a.y;
-        let max_x = entity_rect.b.x;
-        let max_y = entity_rect.b.y;
 
-        let min_vec = Vector::new(min_x, min_y);
-        let max_vec = Vector::new(max_x, max_y);
+        let min_vec = entity_rect.a.coords;
+        let max_vec = entity_rect.b.coords;
         let used_rect = max_vec - min_vec;
         let desired_space = used_rect * 2;
 
@@ -172,7 +168,7 @@ impl Pcb {
         if self.entities.is_empty() {
             return Rect {
                 a: Point::new(0, 0),
-                b: Point::new(0, 0)
+                b: Point::new(0, 0),
             };
         }
         let mut min_x = i32::MAX;
@@ -181,9 +177,9 @@ impl Pcb {
         let mut max_y = i32::MIN;
         for entity in self.entities() {
             min_x = min_x.min(entity.location.x);
-            max_x = max_x.max(entity.location.x);
+            max_x = max_x.max(entity.location.x + entity.size_x());
             min_y = min_y.min(entity.location.y);
-            max_y = max_y.max(entity.location.y);
+            max_y = max_y.max(entity.location.y + entity.size_y());
         }
         Rect {
             a: Point::new(min_x, min_y),

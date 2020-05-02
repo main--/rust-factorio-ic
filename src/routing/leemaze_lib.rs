@@ -20,7 +20,7 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
         rows.push(row);
     }
 
-    println!("{}", render::ascii_wire_to_route(&rows, (from.0 + 10, from.1 + 10), (to.0 + 10, to.1 + 10)));
+//    println!("{}", render::ascii_wire_to_route(&rows, (from.0 + 10, from.1 + 10), (to.0 + 10, to.1 + 10)));
 
     let moveset = AllowedMoves2D {
         moves: ALL_DIRECTIONS.iter().map(Direction::to_vector).map(|v| (v.x, v.y)).collect(),
@@ -31,19 +31,6 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
         &((from.0 + 10) as usize, (from.1 + 10) as usize),
         &((to.0 + 10) as usize, (to.1 + 10) as usize),
     ).ok_or(())?;
-    //    println!("{:?}", path);
-
-    // let moveset_dir = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
-
-    // let mut path2 = vec![(from.0 + 10, from.1 + 10)];
-    // let path = path.ok_or(())?;
-    // for &step in &path {
-    //     let prev = path2.last().unwrap();
-    //     let mov = moveset.moves[step];
-    //     let next = (prev.0 + mov.0, prev.1 + mov.1);
-    //     path2.push(next);
-    // }
-    //    println!("{:?}", path2);
 
 //    println!("{}", render::ascii_routed_wire(&rows, &path2));
     let path = path.into_iter().map(|i| ALL_DIRECTIONS[i]);
