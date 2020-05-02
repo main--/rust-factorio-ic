@@ -57,7 +57,7 @@ fn mylee_internal(
                     walker.history.push(dir);
                     return Some(walker.history);
                 }
-                if !pcb.is_empty((goto.x, goto.y)) {
+                if pcb.is_blocked(goto) {
                     // blocked with existing entity
                     continue;
                 }

@@ -159,10 +159,9 @@ impl Pcb {
             self.entities[i] = None;
         }
     }
-    pub fn is_empty(&self, point: (i32, i32)) -> bool {
-        let grid_idx = Vector::new(point.0, point.1) - self.grid_origin;
-        self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).is_none()
-//        !self.entities().any(|e| e.overlaps(point.0, point.1))
+    pub fn is_blocked(&self, point: Point) -> bool {
+        let grid_idx = point - self.grid_origin;
+        self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).is_some()
     }
     pub fn entity_rect(&self) -> Rect {
         if self.entities.is_empty() {
