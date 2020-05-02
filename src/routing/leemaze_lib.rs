@@ -23,15 +23,10 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
 
     let moveset = AllowedMoves2D {
         moves: vec![
-            (-1, 0),
             (1, 0),
+            (-1, 0),
             (0, 1),
             (0, -1),
-            /*            // underground belts
-             * (6, 0),
-             * (0, 6),
-             * (-6, 0),
-             * (0, -6), */
         ],
     };
     let path = maze_directions2d(
@@ -42,7 +37,7 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     );
     //    println!("{:?}", path);
 
-    let moveset_dir = [Direction::Left, Direction::Right, Direction::Down, Direction::Up];
+    let moveset_dir = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
 
     let mut path2 = vec![(from.0 + 10, from.1 + 10)];
     let path = path.ok_or(())?;
@@ -54,7 +49,7 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     }
     //    println!("{:?}", path2);
 
-    println!("{}", render::ascii_routed_wire(&rows, &path2));
+//    println!("{}", render::ascii_routed_wire(&rows, &path2));
 
     let mut undergrounded_path = Vec::new();
     let mut cut_iter = path.iter();

@@ -40,7 +40,7 @@ pub fn lee_pathfinder_new(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     let path = mylee(pcb, &moveset, from, to);
 
     let mut cursor = from;
-    for step in path.unwrap() {
+    for step in path.ok_or(())? {
         let mov = moveset[step];
 
         pcb.replace(Entity { x: cursor.x, y: cursor.y, function: Function::Belt(mov.0) });
@@ -60,12 +60,12 @@ fn mylee(
     let mut walkers = vec![Mazewalker { pos: from, history: Vec::new() }];
 
     while !walkers.is_empty() {
-        println!("{} walkers {} visited", walkers.len(), visited_fields.len());
+//        println!("{} walkers {} visited", walkers.len(), visited_fields.len());
 
 
 
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
-            println!("{} vs {}", walker.pos, to);
+//            println!("{} vs {}", walker.pos, to);
             for (i, &(_, trans)) in moveset.iter().enumerate() {
                 let goto = trans.transform_point(&walker.pos);
                 if goto == to {

@@ -55,6 +55,6 @@ fn main() {
 
     println!("rendering {} wires", needed_wires.len());
 
-    routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder);
-    //routing::route(&mut pcb, &mut needed_wires, routing::mylee);
+    //routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder);
+    routing::route(&mut pcb, &mut needed_wires, routing::mylee);
 }
