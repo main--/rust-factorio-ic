@@ -50,11 +50,12 @@ fn mylee_internal(
 
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
 //            println!("{} vs {}", walker.pos, to);
-            let iter = if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION) {
-                walker.history.first().into_iter().chain(moveset.iter())
+            let prefer = if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION) {
+                walker.history.first()
             } else {
-                None.into_iter().chain(moveset.iter())
+                None
             };
+            let iter = prefer.into_iter().chain(moveset.iter());
             for &dir in iter {
                 let goto = walker.pos + dir.to_vector();
                 if goto == to {
