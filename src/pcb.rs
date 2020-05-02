@@ -60,8 +60,8 @@ impl Entity {
 
 /// `a` must be top left and `b` must be bottom right
 pub struct Rect {
-    a: Point,
-    b: Point,
+    pub a: Point,
+    pub b: Point,
 }
 
 impl Rect {

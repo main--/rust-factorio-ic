@@ -39,6 +39,12 @@ struct Mazewalker {
 fn mylee_internal(
     pcb: &Pcb, moveset: &[(Direction, Vector)], from: Point, to: Point,
 ) -> Option<Vec<Direction>> {
+    // ensure enough space around possible entities to possibly lay a belt around everything,
+    // including a possible underground belt out, followed by an underground belt back in
+    // and the connection loop
+    let mut bounds = pcb.entity_rect();
+    bounds.a += Vector::new(-2, -2);
+    bounds.b += Vector::new(2, 2);
 
     let mut visited_fields = HashSet::new();
 
@@ -65,7 +71,7 @@ fn mylee_internal(
                     // already visited this field
                     continue;
                 }
-                if goto.x.abs() > 100 || goto.y.abs() > 100 {
+                if !bounds.contains(goto) {
                     continue;
                 }
 
