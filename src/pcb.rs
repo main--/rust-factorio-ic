@@ -58,6 +58,12 @@ impl Entity {
     }
 }
 
+/// `a` must be top left and `b` must be bottom right
+pub struct Rect {
+    a: Point,
+    b: Point,
+}
+
 pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
 
 #[derive(Debug, Clone)]
@@ -78,10 +84,11 @@ impl Pcb {
         }
     }
     pub fn resize_grid(&mut self) {
-        let min_x = self.entities().map(|a| a.location.x).min().unwrap_or(0);
-        let max_x = self.entities().map(|a| a.location.x + a.size_x()).max().unwrap_or(0);
-        let min_y = self.entities().map(|a| a.location.y).min().unwrap_or(0);
-        let max_y = self.entities().map(|a| a.location.y + a.size_y()).max().unwrap_or(0);
+        let entity_rect = self.entity_rect();
+        let min_x = entity_rect.a.x;
+        let min_y = entity_rect.a.y;
+        let max_x = entity_rect.b.x;
+        let max_y = entity_rect.b.y;
 
         let min_vec = Vector::new(min_x, min_y);
         let max_vec = Vector::new(max_x, max_y);
@@ -153,6 +160,35 @@ impl Pcb {
         let grid_idx = Vector::new(point.0, point.1) - self.grid_origin;
         self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).is_none()
 //        !self.entities().any(|e| e.overlaps(point.0, point.1))
+    }
+    pub fn entity_rect(&self) -> Rect {
+        if self.entities.is_empty() {
+            return Rect {
+                a: Point::new(0, 0),
+                b: Point::new(0, 0)
+            };
+        }
+        let mut min_x = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut min_y = i32::MAX;
+        let mut max_y = i32::MIN;
+        for entity in self.entities() {
+            min_x = min_x.min(entity.location.x);
+            max_x = max_x.max(entity.location.x);
+            min_y = min_y.min(entity.location.y);
+            max_y = max_y.max(entity.location.y);
+        }
+        Rect {
+            a: Point::new(min_x, min_y),
+            b: Point::new(max_x, max_y),
+        }
+    }
+    pub fn grid_capacity(&self) -> Rect {
+        let (size_x, size_y) = self.grid.dim();
+        Rect {
+            a: Point { coords: self.grid_origin },
+            b: Point::new(size_x as i32 - self.grid_origin.x, size_y as i32 - self.grid_origin.y),
+        }
     }
 }
 
