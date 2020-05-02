@@ -61,7 +61,7 @@ pub fn gridrender_subtree(
                     },
                 },
                 // input belt
-                Entity { location: Point::new(startx + 6, starty + 0), function: Function::Belt(Direction::Up) },
+                Entity { location: Point::new(startx + 6, starty + 0), function: Function::Belt(Direction::Left) },
                 Entity { location: Point::new(startx + 6, starty + 1), function: Function::Belt(Direction::Up) },
                 Entity { location: Point::new(startx + 6, starty + 2), function: Function::Belt(Direction::Up) },
                 Entity {
@@ -82,7 +82,7 @@ pub fn gridrender_subtree(
                     // input belt 2
                     Entity {
                         location: Point::new(startx + 7, starty + 0),
-                        function: Function::Belt(Direction::Up),
+                        function: Function::Belt(Direction::Left),
                     },
                     Entity {
                         location: Point::new(startx + 7, starty + 1),
