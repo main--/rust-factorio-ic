@@ -2,10 +2,10 @@ use fehler::throws;
 
 use crate::pcb::{Pcb, Direction, Point, ALL_DIRECTIONS};
 use crate::render;
-use crate::routing::apply_lee_path;
+use crate::routing::{apply_lee_path, RoutingOptimizations};
 
 #[throws(())]
-pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
+pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: RoutingOptimizations) {
     use leemaze::{maze_directions2d, AllowedMoves2D};
 
     let max_x = pcb.entities().map(|x| x.location.x + x.size_x()).max().unwrap_or(0) + 10;

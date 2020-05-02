@@ -4,7 +4,7 @@ use fehler::throws;
 
 use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS};
 use crate::render;
-use crate::routing::apply_lee_path;
+use crate::routing::{apply_lee_path, RoutingOptimizations};
 
 // # Types of wires:
 //
@@ -16,11 +16,11 @@ use crate::routing::apply_lee_path;
 // Trivial implementation: L+R construction
 
 #[throws(())]
-pub fn mylee(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
+pub fn mylee(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
     let from = Point::new(from.0, from.1);
     let to = Point::new(to.0, to.1);
 
-    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to).ok_or(())?;
+    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts).ok_or(())?;
 
     apply_lee_path(pcb, from, path);
 }
@@ -31,7 +31,7 @@ struct Mazewalker {
 }
 
 fn mylee_internal(
-    pcb: &Pcb, moveset: &[Direction], from: Point, to: Point,
+    pcb: &Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
 ) -> Option<Vec<Direction>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -50,7 +50,12 @@ fn mylee_internal(
 
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
 //            println!("{} vs {}", walker.pos, to);
-            for &dir in moveset.iter() {
+            let iter = if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION) {
+                walker.history.first().into_iter().chain(moveset.iter())
+            } else {
+                None.into_iter().chain(moveset.iter())
+            };
+            for &dir in iter {
                 let goto = walker.pos + dir.to_vector();
                 if goto == to {
                     let mut walker = walker;

@@ -11,13 +11,19 @@ pub use mylee::mylee as mylee;
 use std::convert::TryInto;
 use rand::prelude::*;
 
-pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32)) -> Result<(), ()>) {
+bitflags::bitflags! {
+    pub struct RoutingOptimizations: u64 {
+        const MYLEE_PREFER_SAME_DIRECTION = 0b00000001;
+    }
+}
+
+pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
     let mut panic = 0;
     let mut temperature = 20;
     let mut rng = StdRng::from_seed([0; 32]);
 
     loop {
-        match try_wiring(pcb.clone(), &needed_wires, pathfinder_fn) {
+        match try_wiring(pcb.clone(), &needed_wires, pathfinder_fn, optimizations) {
             Ok(p) => {
                 *pcb = p;
                 return;
@@ -42,18 +48,17 @@ pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&m
 
 #[throws(usize)]
 fn try_wiring(mut pcb: Pcb,
-              needed_wires: &NeededWires,
-              pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32)) -> Result<(), ()>)
-        -> Pcb {
+    needed_wires: &NeededWires,
+    pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
+    opts: RoutingOptimizations,
+) -> Pcb {
     for (i, &(from, to)) in needed_wires.iter().enumerate() {
         // render_blueprint_ascii(&pcb);
-        pathfinder_fn(&mut pcb, from, to).map_err(|()| i)?;
-
         #[cfg(feature = "render_wiring_steps")]
         println!("{}", render::ascii(&pcb));
+
+        pathfinder_fn(&mut pcb, from, to, opts).map_err(|()| i)?;
     }
-
-
     pcb
 }
 

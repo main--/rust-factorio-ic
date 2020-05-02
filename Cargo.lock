@@ -80,6 +80,7 @@ dependencies = [
 name = "factorio-ic"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "factorio-blueprint",
  "fehler",
  "leemaze",

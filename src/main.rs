@@ -1,6 +1,7 @@
 use std::env;
 
 use crate::pcb::{Entity, Function, Direction, Pcb, NeededWires, Point};
+use crate::routing::RoutingOptimizations;
 
 mod recipe;
 mod kirkmcdonald;
@@ -53,8 +54,8 @@ fn main() {
 
     println!("rendering {} wires", needed_wires.len());
 
-    //routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder);
-    routing::route(&mut pcb, &mut needed_wires, routing::mylee);
+    // routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder, RoutingOptimizations::empty());
+    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
 
     println!("{}", render::blueprint(&pcb));
     println!("{}", render::ascii(&pcb));
