@@ -14,7 +14,7 @@ pub enum Direction {
     Left,
     Right,
 }
-static ALL_DIRECTIONS: [Direction; 4] = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
+const ALL_DIRECTIONS: [Direction; 4] = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
 impl Direction {
     fn to_vector(&self) -> Vector {
         match self {
