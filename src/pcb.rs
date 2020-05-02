@@ -161,7 +161,7 @@ impl Pcb {
     }
     pub fn is_blocked(&self, point: Point) -> bool {
         let grid_idx = point - self.grid_origin;
-        self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).is_some()
+        self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)).and_then(|i| self.entities[i].as_ref()).is_some()
     }
     pub fn entity_rect(&self) -> Rect {
         if self.entities.is_empty() {
