@@ -32,17 +32,17 @@ fn main() {
         placement::simple_grid(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
 
     let gap_upper = 3;
-    pcb.entities_mut().extend(vec![
+    pcb.add_all(&[
         Entity { x: 0, y: -3 - gap_upper, function: Function::Belt(Direction::Up) },
         Entity { x: 0, y: -4 - gap_upper, function: Function::Belt(Direction::Up) },
     ]);
     for i in 0..lins.len() {
-        pcb.entities_mut().push(Entity {
+        pcb.add(Entity {
             x: i as i32 + 1,
             y: -3 - gap_upper,
             function: Function::Belt(Direction::Down),
         });
-        pcb.entities_mut().push(Entity {
+        pcb.add(Entity {
             x: i as i32 + 1,
             y: -4 - gap_upper,
             function: Function::Belt(Direction::Down),

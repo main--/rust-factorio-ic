@@ -44,7 +44,7 @@ pub fn gridrender_subtree(
             let startx = cell_size_x * grid_x;
             let starty = cell_size_y * grid_y;
 
-            pcb.entities_mut().extend(vec![
+            pcb.add_all(&[
                 Entity {
                     x: startx + 2,
                     y: starty + 0,
@@ -81,7 +81,7 @@ pub fn gridrender_subtree(
             }
 
             if second_input_belt {
-                pcb.entities_mut().extend(vec![
+                pcb.add_all(&[
                     // input belt 2
                     Entity {
                         x: startx + 7,
@@ -124,7 +124,7 @@ pub fn gridrender_subtree(
             // single input, so no lane organization needed
             target_points.push((sx + 6, sy + 2));
         } else {
-            pcb.entities_mut().extend(vec![
+            pcb.add_all(&[
                 Entity { x: sx + 6, y: sy + 3, function: Function::Belt(Direction::Up) },
                 Entity { x: sx + 5, y: sy + 3, function: Function::Belt(Direction::Right) },
                 Entity { x: sx + 7, y: sy + 3, function: Function::Belt(Direction::Left) },
@@ -136,7 +136,7 @@ pub fn gridrender_subtree(
                 if our_inputs.len() == 3 {
                     target_points.push((sx + 7, sy + 2));
                 } else {
-                    pcb.entities_mut().extend(vec![
+                    pcb.add_all(&[
                         Entity { x: sx + 8, y: sy + 2, function: Function::Belt(Direction::Left) },
                         Entity { x: sx + 8, y: sy + 1, function: Function::Belt(Direction::Down) },
                         Entity { x: sx + 8, y: sy + 3, function: Function::Belt(Direction::Up) },

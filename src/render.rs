@@ -64,7 +64,6 @@ pub fn blueprint(pcb: &Pcb) -> String {
         }],
         tiles: vec![],
         entities: pcb.entities()
-            .iter()
             .enumerate()
             .map(|(i, e)| {
                 let mut underground_type = None;
@@ -152,11 +151,11 @@ struct AsciiCanvas {
     canvas: Vec<Vec<char>>,
 }
 impl AsciiCanvas {
-    fn build(entities: &[Entity]) -> Self {
-        let min_x = entities.iter().map(|x| x.x).min().unwrap_or(0);
-        let min_y = entities.iter().map(|x| x.y).min().unwrap_or(0);
-        let max_x = entities.iter().map(|x| x.x + x.size_x()).max().unwrap_or(0);
-        let max_y = entities.iter().map(|x| x.y + x.size_y()).max().unwrap_or(0);
+    fn build<'a>(entities: impl Clone + Iterator<Item=&'a Entity>) -> Self {
+        let min_x = entities.clone().map(|x| x.x).min().unwrap_or(0);
+        let min_y = entities.clone().map(|x| x.y).min().unwrap_or(0);
+        let max_x = entities.clone().map(|x| x.x + x.size_x()).max().unwrap_or(0);
+        let max_y = entities.clone().map(|x| x.y + x.size_y()).max().unwrap_or(0);
 
         let offset_x = -min_x;
         let offset_y = -min_y;

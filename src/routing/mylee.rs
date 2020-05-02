@@ -43,8 +43,7 @@ pub fn lee_pathfinder_new(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     for step in path.unwrap() {
         let mov = moveset[step];
 
-        pcb.entities_mut().retain(|e| !e.overlaps(cursor.x, cursor.y)); // delete conflicting entities
-        pcb.entities_mut().push(Entity { x: cursor.x, y: cursor.y, function: Function::Belt(mov.0) });
+        pcb.replace(Entity { x: cursor.x, y: cursor.y, function: Function::Belt(mov.0) });
 
         cursor = mov.1.transform_point(&cursor);
     }

@@ -12,4 +12,5 @@ rlua = "0.17"
 leemaze = "0.1.11"
 nalgebra = "0.21"
 fehler = "1.0"
+ndarray = "0.13"
 
