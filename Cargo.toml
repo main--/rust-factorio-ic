@@ -14,3 +14,6 @@ nalgebra = "0.21"
 fehler = "1.0"
 ndarray = "0.13"
 rand = "0.7"
+
+[features]
+render_wiring_steps = []

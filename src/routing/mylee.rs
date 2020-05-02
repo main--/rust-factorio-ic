@@ -17,16 +17,10 @@ use crate::routing::apply_lee_path;
 
 #[throws(())]
 pub fn mylee(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
-    let moveset: Vec<_> = ALL_DIRECTIONS.iter().copied()
-        .map(|d| (d, d.to_vector()))
-        .collect();
-
     let from = Point::new(from.0, from.1);
     let to = Point::new(to.0, to.1);
 
-    println!("{}", render::ascii(pcb));
-    println!("from: {:?}, to: {:?}", from, to);
-    let path = mylee_internal(pcb, &moveset, from, to).ok_or(())?;
+    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to).ok_or(())?;
 
     apply_lee_path(pcb, from, path);
 }
@@ -37,7 +31,7 @@ struct Mazewalker {
 }
 
 fn mylee_internal(
-    pcb: &Pcb, moveset: &[(Direction, Vector)], from: Point, to: Point,
+    pcb: &Pcb, moveset: &[Direction], from: Point, to: Point,
 ) -> Option<Vec<Direction>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -56,8 +50,8 @@ fn mylee_internal(
 
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
 //            println!("{} vs {}", walker.pos, to);
-            for &(dir, trans) in moveset.iter() {
-                let goto = walker.pos + trans;
+            for &dir in moveset.iter() {
+                let goto = walker.pos + dir.to_vector();
                 if goto == to {
                     let mut walker = walker;
                     walker.history.push(dir);

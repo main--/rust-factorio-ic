@@ -48,10 +48,11 @@ fn try_wiring(mut pcb: Pcb,
     for (i, &(from, to)) in needed_wires.iter().enumerate() {
         // render_blueprint_ascii(&pcb);
         pathfinder_fn(&mut pcb, from, to).map_err(|()| i)?;
+
+        #[cfg(feature = "render_wiring_steps")]
+        println!("{}", render::ascii(&pcb));
     }
 
-//    println!("{}", render::ascii(&pcb));
-//    println!("{}", render::blueprint(&pcb));
 
     pcb
 }
