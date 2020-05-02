@@ -64,6 +64,13 @@ pub struct Rect {
     b: Point,
 }
 
+impl Rect {
+    pub fn contains(&self, point: Point) -> bool {
+        self.a.x <= point.x && point.x < self.b.x
+        && self.a.y <= point.y && point.y < self.b.y
+    }
+}
+
 pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
 
 #[derive(Debug, Clone)]
