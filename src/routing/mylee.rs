@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 
 use fehler::throws;
-use nalgebra::geometry::{Point2, Translation2};
+use nalgebra::geometry::Point2;
+use nalgebra::base::Vector2;
 
 use crate::pcb::{Entity, Direction, Function, Pcb};
 use crate::render;
 
 type Point = Point2<i32>;
-type Translation = Translation2<i32>;
+type Vector = Vector2<i32>;
 
 struct Mazewalker {
     pos: Point,
@@ -26,10 +27,10 @@ struct Mazewalker {
 #[throws(())]
 pub fn lee_pathfinder_new(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
     let moveset = [
-        (Direction::Right, Translation::new(1, 0)),
-        (Direction::Down, Translation::new(0, 1)),
-        (Direction::Left, Translation::new(-1, 0)),
-        (Direction::Up, Translation::new(0, -1)),
+        (Direction::Right, Vector::new(1, 0)),
+        (Direction::Down, Vector::new(0, 1)),
+        (Direction::Left, Vector::new(-1, 0)),
+        (Direction::Up, Vector::new(0, -1)),
     ];
 
     let from = Point2::new(from.0, from.1);
@@ -45,13 +46,13 @@ pub fn lee_pathfinder_new(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32)) {
 
         pcb.replace(Entity { x: cursor.x, y: cursor.y, function: Function::Belt(mov.0) });
 
-        cursor = mov.1.transform_point(&cursor);
+        cursor += mov.1;
     }
 }
 
 
 fn mylee(
-    pcb: &Pcb, moveset: &[(Direction, Translation)], from: Point, to: Point,
+    pcb: &Pcb, moveset: &[(Direction, Vector)], from: Point, to: Point,
 ) -> Option<Vec<usize>> {
 
     let mut visited_fields = HashSet::new();
@@ -67,7 +68,7 @@ fn mylee(
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
 //            println!("{} vs {}", walker.pos, to);
             for (i, &(_, trans)) in moveset.iter().enumerate() {
-                let goto = trans.transform_point(&walker.pos);
+                let goto = walker.pos + trans;
                 if goto == to {
                     let mut walker = walker;
                     walker.history.push(i);
@@ -81,7 +82,7 @@ fn mylee(
                     // already visited this field
                     continue;
                 }
-                if goto.x.abs() > 30 || goto.y.abs() > 30 {
+                if goto.x.abs() > 100 || goto.y.abs() > 100 {
                     continue;
                 }
 
