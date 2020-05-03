@@ -160,9 +160,10 @@ fn mylee_internal(
                     }
 
                     visited.insert(goto, dir);
-                    let new_history = walker.history.iter().copied().chain(iter::once(Belt::Underground { dir, gap })).collect();
+                    let new_history: Vec<_> = walker.history.iter().copied().chain(iter::once(Belt::Underground { dir, gap })).collect();
+
                     if goto == to {
-                        let mut path = walker.history;
+                        let mut path = new_history;
                         path.push(Belt::Normal(dir));
                         return Some(path);
                     }
