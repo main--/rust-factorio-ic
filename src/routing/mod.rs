@@ -167,13 +167,14 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<Bel
 
 fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut Pcb, from: Point, path: I) where I::IntoIter: Clone {
     let mut cursor = from;
-    for (i, belt) in path.into_iter().enumerate() {
+    let path = path.into_iter();
+    // println!("{}", render::ascii_wire(pcb, from, path.clone(), pcb.grid_capacity()));
+    for (i, belt) in path.enumerate() {
         let mut add_beginning = |x| if i == 0 { pcb.replace(x) } else { pcb.add(x) };
 
         match belt {
             Belt::Normal(dir) => {
                 add_beginning(Entity { location: cursor, function: Function::Belt(dir) });
-                cursor += dir.to_vector();
             },
             Belt::Underground { dir, gap } => {
                 add_beginning(Entity {
@@ -181,12 +182,11 @@ fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut Pcb, from: Point, path
                     function: Function::UndergroundBelt(dir, true),
                 });
                 pcb.add(Entity {
-                    location: cursor + dir.to_vector() * (gap + 1),
+                    location: belt.underground_belt_end_position(cursor).unwrap(),
                     function: Function::UndergroundBelt(dir, false),
                 });
-
-                cursor += dir.to_vector() * (gap + 2);
             },
         }
+        cursor = belt.position_after(cursor);
     }
 }
