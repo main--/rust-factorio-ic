@@ -7,7 +7,7 @@ pub fn gridrender_subtree(
     subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Pcb,
     needed_wires: &mut Vec<((i32, i32), (i32, i32))>, gridsize: i32,
 ) -> Option<(Vec<(i32, i32)>, (i32, i32))> {
-    if subtree.building == Some(Category::Assembler) {
+    if subtree.building == Some(Category::Assembler) || subtree.building == Some(Category::Furnace) {
         let mut upper_inputs = Vec::new();
         let mut our_inputs = Vec::new();
 
@@ -44,10 +44,16 @@ pub fn gridrender_subtree(
             let startx = cell_size_x * grid_x;
             let starty = cell_size_y * grid_y;
 
+            let main_function = match subtree.building {
+                Some(Category::Assembler) => Function::Assembler { recipe: subtree.output.clone() },
+                Some(Category::Furnace) => Function::Furnace,
+                _ => unreachable!(),
+            };
+
             pcb.add_all(&[
                 Entity {
                     location: Point::new(startx + 2, starty + 0),
-                    function: Function::Assembler { recipe: subtree.output.clone() },
+                    function: main_function,
                 },
                 // output belt
                 Entity { location: Point::new(startx + 0, starty + 0), function: Function::Belt(Direction::Down) },

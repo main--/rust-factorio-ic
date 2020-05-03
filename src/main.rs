@@ -18,7 +18,7 @@ fn main() {
     println!("Parsed {} recipes", recipes.len());
 
     // let tree = kirkmcdonald::kirkmcdonald(&recipes, "automation-science-pack", 0.1);
-    let tree = kirkmcdonald::kirkmcdonald(&recipes, "chemical-science-pack", 0.1);
+    let tree = kirkmcdonald::kirkmcdonald(&recipes, "logistic-science-pack", 0.1);
     println!("{:#?}", tree);
     let needed_assemblers: Vec<_> = kirkmcdonald::needed_assemblers(&tree).collect();
     println!("assemblers needed: {:?}", needed_assemblers);

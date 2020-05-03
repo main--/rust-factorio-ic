@@ -80,6 +80,11 @@ pub fn blueprint(pcb: &Pcb) -> String {
                         position.y += 1.;
                         "assembling-machine-2"
                     },
+                    Function::Furnace => {
+                        position.x += 1.;
+                        position.y += 1.;
+                        "electric-furnace"
+                    }
                     Function::Inserter { orientation, long_handed } => {
                         // reverse direction because the game thinks about these differently than we
                         // do
@@ -182,6 +187,17 @@ impl AsciiCanvas {
                     canvas.set(e.location.x + 1, e.location.y + 2, '─');
                     canvas.set(e.location.x + 2, e.location.y + 2, '┘');
                 },
+                Function::Furnace => {
+                    canvas.set(e.location.x + 0, e.location.y + 0, '┌');
+                    canvas.set(e.location.x + 1, e.location.y + 0, '─');
+                    canvas.set(e.location.x + 2, e.location.y + 0, '┐');
+                    canvas.set(e.location.x + 0, e.location.y + 1, '│');
+
+                    canvas.set(e.location.x + 2, e.location.y + 1, '│');
+                    canvas.set(e.location.x + 0, e.location.y + 2, '└');
+                    canvas.set(e.location.x + 1, e.location.y + 2, '─');
+                    canvas.set(e.location.x + 2, e.location.y + 2, '┘');
+                }
                 Function::Inserter { orientation: d, long_handed } => {
                     let symbol = if long_handed {
                         match d {
