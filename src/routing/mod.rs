@@ -35,6 +35,7 @@ pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&m
                 println!("total tries: {}", total_tries);
                 println!("total depth: {}", total_depth);
                 println!("averg depth: {:2}", total_depth as f32 / total_tries as f32);
+                reduce_gratuitous_undergrounds(pcb);
                 return;
             }
             Err(i) => {
@@ -56,6 +57,40 @@ pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&m
         }
     }
 }
+
+fn reduce_gratuitous_undergrounds(pcb: &mut Pcb) {
+    collapse_underground_oneway(pcb, true);
+    collapse_underground_oneway(pcb, false);
+}
+fn collapse_underground_oneway(pcb: &mut Pcb, down: bool) {
+    let mut candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
+        Function::UndergroundBelt(d, mode) if mode == down => Some((e.location, d)),
+        _ => None,
+    }).collect();
+
+    for (mut pos, dir) in candidates {
+        let v = dir.to_vector() * if down { 1 } else { -1 };
+        loop {
+            let collapse_fully = match pcb.entity_at(pos + v) {
+                None => false,
+                Some(Entity { function: Function::UndergroundBelt(od, mode), .. }) if *od == dir && *mode != down => true,
+
+                _ => break,
+            };
+
+            // collapse the entry by one tile and loop
+            pcb.replace(Entity { location: pos, function: Function::Belt(dir) });
+            pos += v;
+            if collapse_fully {
+                pcb.replace(Entity { location: pos, function: Function::Belt(dir) });
+                break;
+            } else {
+                pcb.replace(Entity { location: pos, function: Function::UndergroundBelt(dir, down) });
+            }
+        }
+    }
+}
+
 
 #[throws(usize)]
 fn try_wiring(mut pcb: Pcb,
