@@ -158,6 +158,8 @@ impl Pcb {
         let tiles = tiles.map(|t| t + tiles_origin);
         for tile in tiles {
             let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
+            let entities = &self.entities;
+            assert!((*tile).checked_sub(1).and_then(|i| entities[i].as_ref()).is_none(), "Conflicting entities");
             *tile = index + 1;
         }
     }
