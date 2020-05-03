@@ -67,11 +67,13 @@ fn mylee_internal(
             for dir in prefer_direction.into_iter().chain(base_moveset.copied()) {
                 let goto = walker.pos + dir.to_vector();
                 if goto == to {
-                    let mut walker = walker;
-                    walker.history.push(Belt::Normal(dir));
                     let mut path = walker.history;
+                    path.push(Belt::Normal(dir));
                     if !opts.contains(RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS) {
-                        path = insert_underground_belts(path);
+                        path = insert_underground_belts(path.into_iter().map(|b| match b {
+                            Belt::Normal(d) => d,
+                            _ => unreachable!(),
+                        }));
                     }
                     return Some(path);
                 }
