@@ -1,10 +1,47 @@
 use std::iter::{self, FromIterator};
+use std::borrow::Borrow;
+use std::collections::HashMap;
 
-use crate::pcb::{Pcb, Entity, Function, Direction};
+use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point};
+use crate::routing::Belt;
 
 #[must_use]
 pub fn ascii(pcb: &Pcb) -> String {
     AsciiCanvas::build(pcb.entities()).render()
+}
+
+#[must_use]
+pub fn ascii_wire(pcb: &Pcb, from: Point,  wire: impl IntoIterator<Item=impl Borrow<Belt>>, bounds: Rect) -> String {
+    let mut coords = HashMap::new();
+    for x in bounds.a.x..bounds.b.x {
+        for y in bounds.a.y..bounds.b.y {
+            let c = if pcb.is_blocked(Point::new(x, y)) { 'X' } else { ' ' };
+            coords.insert((x, y), c);
+        }
+    }
+
+    let mut pos = from;
+    let mut i = 0usize;
+    for belt in wire.into_iter() {
+        let belt = belt.borrow();
+        let c = i.to_string().chars().last().unwrap();
+        coords.insert((pos.x, pos.y), c);
+        if let Some(end) = belt.underground_belt_end_position(pos) {
+            coords.insert((end.x, end.y), c);
+        }
+        pos = belt.position_after(pos);
+        i += 1;
+    }
+    coords.insert((pos.x, pos.y), i.to_string().chars().last().unwrap());
+
+    let mut res = String::with_capacity(1024);
+    for y in bounds.a.y..bounds.b.y {
+        for x in bounds.a.x..bounds.b.x {
+            res.push(*coords.get(&(x, y)).unwrap());
+        }
+        res.push('\n');
+    }
+    res
 }
 
 #[must_use]

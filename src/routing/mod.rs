@@ -110,7 +110,7 @@ fn try_wiring(mut pcb: Pcb,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-enum Belt {
+pub enum Belt {
     Normal(Direction),
     Underground {
         dir: Direction,
@@ -118,10 +118,22 @@ enum Belt {
     },
 }
 impl Belt {
-    fn direction(&self) -> Direction {
+    pub fn direction(&self) -> Direction {
         match *self {
             Belt::Normal(dir) => dir,
             Belt::Underground { dir, .. } => dir,
+        }
+    }
+    pub fn position_after(&self, point: Point) -> Point {
+        match *self {
+            Belt::Normal(dir) => point + dir.to_vector(),
+            Belt::Underground { dir, gap } => point + (dir.to_vector() * (gap + 2)),
+        }
+    }
+    pub fn underground_belt_end_position(&self, point: Point) -> Option<Point> {
+        match *self {
+            Belt::Normal(_) => None,
+            Belt::Underground { dir, gap } => Some(point + (dir.to_vector() * (gap + 1))),
         }
     }
 }

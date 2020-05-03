@@ -31,6 +31,34 @@ struct Mazewalker {
     pos: Point,
     history: Vec<Belt>,
 }
+impl Mazewalker {
+    fn conflicts_with_own_path(&self, test: Point) -> bool {
+        // go backwards from current position
+        let mut pos = self.pos;
+        for &belt in self.history.iter().rev() {
+            match belt {
+                Belt::Normal(dir) => {
+                    pos -= dir.to_vector();
+                    if pos == test {
+                        return true;
+                    }
+                }
+                Belt::Underground { dir, gap } => {
+                    // underground end tile
+                    pos -= dir.to_vector();
+                    if pos == test {
+                        return true;
+                    }
+                    pos -= dir.to_vector() * (gap + 1);
+                    if pos == test {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+}
 
 struct Visited {
     with_directions: bool,
@@ -116,14 +144,9 @@ fn mylee_internal(
                     }
                     return Some(path);
                 }
-                if pcb.is_blocked(goto) {
-                    // blocked with existing entity
-                    continue;
-                }
-                if visited.contains(goto, dir) {
-                    continue;
-                }
-                if !bounds.contains(goto) {
+                if pcb.is_blocked(goto) || visited.contains(goto, dir) || !bounds.contains(goto)
+                    || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
+                {
                     continue;
                 }
 
@@ -150,22 +173,25 @@ fn mylee_internal(
                         _ => (),
                     }
                     // we can't land directly on the field we want to reach with an underground belt
-                    if underground_end == to || visited.contains(underground_end, dir) || !bounds.contains(underground_end) {
+                    if underground_end == to || visited.contains(underground_end, dir) || !bounds.contains(underground_end)
+                        || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(underground_end))
+                    {
                         continue;
                     }
 
                     let goto = underground_end + dir.to_vector();
-                    if visited.contains(goto, dir) || !bounds.contains(goto) || pcb.is_blocked(goto) {
+                    if visited.contains(goto, dir) || !bounds.contains(goto) || pcb.is_blocked(goto)
+                        || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
+                    {
                         continue;
                     }
 
                     visited.insert(goto, dir);
-                    let new_history: Vec<_> = walker.history.iter().copied().chain(iter::once(Belt::Underground { dir, gap })).collect();
-
+                    let mut new_history = walker.history.clone();
+                    new_history.push(Belt::Underground { dir, gap });
                     if goto == to {
-                        let mut path = new_history;
-                        path.push(Belt::Normal(dir));
-                        return Some(path);
+                        new_history.push(Belt::Normal(dir));
+                        return Some(new_history);
                     }
                     walkers.push(Mazewalker { pos: goto, history: new_history });
                 }

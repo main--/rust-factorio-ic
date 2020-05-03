@@ -74,6 +74,7 @@ impl Entity {
 }
 
 /// `a` must be top left and `b` must be bottom right
+#[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub a: Point,
     pub b: Point,
