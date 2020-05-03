@@ -82,7 +82,7 @@ pub fn gridrender_subtree(
                     // input belt 2
                     Entity {
                         location: Point::new(startx + 7, starty + 0),
-                        function: Function::Belt(Direction::Left),
+                        function: Function::Belt(Direction::Down),
                     },
                     Entity {
                         location: Point::new(startx + 7, starty + 1),
