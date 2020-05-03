@@ -17,8 +17,9 @@ fn main() {
     let recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
 
-    // let tree = kirkmcdonald::kirkmcdonald(&recipes, "automation-science-pack", 0.1);
-    let tree = kirkmcdonald::kirkmcdonald(&recipes, "logistic-science-pack", 0.1);
+    let tree = kirkmcdonald::kirkmcdonald(&recipes, "automation-science-pack", 0.1);
+    //let tree = kirkmcdonald::kirkmcdonald(&recipes, "chemical-science-pack", 0.1);
+
     println!("{:#?}", tree);
     let needed_assemblers: Vec<_> = kirkmcdonald::needed_assemblers(&tree).collect();
     println!("assemblers needed: {:?}", needed_assemblers);
@@ -28,7 +29,7 @@ fn main() {
     println!("gridsize={}", gridsize);
 
     let mut grid_i = 0;
-    let mut pcb = Pcb::new();
+    let mut pcb = pcb::GridPcb::default();
     let mut needed_wires = NeededWires::new();
     let (lins, lout) =
         placement::simple_grid(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
@@ -59,7 +60,7 @@ fn main() {
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::empty());
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
-    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS | RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS | RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
+    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
 
     println!("{}", render::blueprint(&pcb));
     println!("{}", render::ascii(&pcb));

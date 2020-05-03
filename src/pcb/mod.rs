@@ -8,12 +8,10 @@ pub type Vector = Vector2<i32>;
 mod hashmap;
 mod naive;
 mod grid;
-#[cfg(feature = "pcb-naive")]
-pub use naive::Pcb;
-#[cfg(feature = "pcb-hashmap")]
-pub use hashmap::Pcb;
-#[cfg(feature = "pcb-grid")]
-pub use grid::Pcb;
+
+pub use naive::NaivePcb;
+pub use hashmap::HashmapPcb;
+pub use grid::GridPcb;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
@@ -73,11 +71,11 @@ impl Entity {
         self.size_x() // currently everything is quadratic
     }
 
-    pub fn overlaps(&self, x: i32, y: i32) -> bool {
-        (self.location.x <= x)
-            && (self.location.x + self.size_x() > x)
-            && (self.location.y <= y)
-            && (self.location.y + self.size_y() > y)
+    pub fn overlaps(&self, p: Point) -> bool {
+        (self.location.x <= p.x)
+            && (self.location.x + self.size_x() > p.x)
+            && (self.location.y <= p.y)
+            && (self.location.y + self.size_y() > p.y)
     }
 }
 
@@ -98,7 +96,10 @@ impl Rect {
 pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
 
 
-pub trait PcbImpl: Default {
+pub trait Pcb<'a>: Default + Clone {
+    type EntityIter: Iterator<Item=&'a Entity> + Clone;
+    fn entities(&'a self) -> Self::EntityIter;
+
     fn add(&mut self, entity: impl Borrow<Entity>);
     fn add_all<I>(&mut self, iter: I) where I: IntoIterator, I::Item: Borrow<Entity> {
         for e in iter { self.add(e); }
@@ -113,22 +114,22 @@ pub trait PcbImpl: Default {
     fn is_blocked(&self, point: Point) -> bool {
         self.entity_at(point).is_some()
     }
-}
 
-pub fn entity_rect<'a>(entities: impl Iterator<Item=&'a Entity>) -> Rect {
-    let mut min_x = i32::MAX;
-    let mut max_x = i32::MIN;
-    let mut min_y = i32::MAX;
-    let mut max_y = i32::MIN;
-    for entity in entities {
-        min_x = min_x.min(entity.location.x);
-        max_x = max_x.max(entity.location.x + entity.size_x());
-        min_y = min_y.min(entity.location.y);
-        max_y = max_y.max(entity.location.y + entity.size_y());
-    }
-    Rect {
-        a: Point::new(min_x, min_y),
-        b: Point::new(max_x, max_y),
+    fn entity_rect(&'a self) -> Rect {
+        let mut min_x = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut min_y = i32::MAX;
+        let mut max_y = i32::MIN;
+        for entity in self.entities() {
+            min_x = min_x.min(entity.location.x);
+            max_x = max_x.max(entity.location.x + entity.size_x());
+            min_y = min_y.min(entity.location.y);
+            max_y = max_y.max(entity.location.y + entity.size_y());
+        }
+        Rect {
+            a: Point::new(min_x, min_y),
+            b: Point::new(max_x, max_y),
+        }
     }
 }
 

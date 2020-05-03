@@ -3,10 +3,9 @@ use fehler::throws;
 use crate::pcb::{Pcb, Direction, Point, ALL_DIRECTIONS};
 use crate::render;
 use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
-use crate::pcb::PcbImpl;
 
 #[throws(())]
-pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: RoutingOptimizations) {
+pub fn lee_pathfinder<'a>(pcb: &'a mut impl Pcb<'a>, from: (i32, i32), to: (i32, i32), _: RoutingOptimizations) {
     use leemaze::{maze_directions2d, AllowedMoves2D};
 
     let max_x = pcb.entities().map(|x| x.location.x + x.size_x()).max().unwrap_or(0) + 10;
@@ -16,7 +15,7 @@ pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: Routin
     for y in -10..max_y {
         let mut row = Vec::new();
         for x in -10..max_x {
-            row.push((x, y) != to && pcb.entities().any(|e| e.overlaps(x, y)));
+            row.push((x, y) != to && pcb.entities().any(|e| e.overlaps(Point::new(x, y))));
         }
         rows.push(row);
     }

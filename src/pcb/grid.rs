@@ -3,20 +3,22 @@ use nalgebra::geometry::Point2;
 use nalgebra::base::Vector2;
 use fehler::throws;
 use std::borrow::Borrow;
+use std::slice::Iter;
+use std::iter::FilterMap;
 
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct Pcb {
+pub struct GridPcb {
     entities: Vec<Option<Entity>>,
 
     grid_origin: Vector,
     grid: Array2<usize>, // contains index in enities + 1 (zero is none)
 }
 
-impl Default for Pcb {
-    fn default() -> Pcb {
-        Pcb {
+impl Default for GridPcb {
+    fn default() -> GridPcb {
+        GridPcb {
             entities: Vec::new(),
 
             grid_origin: Vector::new(0, 0),
@@ -25,9 +27,9 @@ impl Default for Pcb {
     }
 }
 
-impl Pcb {
+impl GridPcb {
     fn resize_grid(&mut self) {
-        let entity_rect = entity_rect(self.entities());
+        let entity_rect = self.entity_rect();
 
         let min_vec = entity_rect.a.coords;
         let max_vec = entity_rect.b.coords;
@@ -65,12 +67,13 @@ impl Pcb {
             *tile = index + 1;
         }
     }
-
-    pub fn entities<'a>(&'a self) -> impl Iterator<Item=&'a Entity> + Clone {
-        self.entities.iter().filter_map(|o| o.as_ref())
-    }
 }
-impl PcbImpl for Pcb {
+impl<'a> Pcb<'a> for GridPcb {
+    type EntityIter = FilterMap<Iter<'a, Option<Entity>>, fn(&Option<Entity>) -> Option<&Entity>>;
+    fn entities(&'a self) -> Self::EntityIter {
+        self.entities.iter().filter_map(Option::as_ref)
+    }
+
     fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
         let index = self.entities.len();
