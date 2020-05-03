@@ -32,6 +32,46 @@ struct Mazewalker {
     history: Vec<Belt>,
 }
 
+struct Visited {
+    with_directions: bool,
+    fields: HashSet<Point>,
+    fields_directions: HashSet<(Point,Direction)>,
+}
+
+impl Visited {
+    fn new(with_directions: bool) -> Visited {
+        Visited {
+            with_directions,
+            fields: HashSet::new(),
+            fields_directions: HashSet::new(),
+        }
+    }
+
+    fn insert(&mut self, point: Point, dir: Direction) {
+        if self.with_directions {
+            self.fields_directions.insert((point, dir));
+        } else {
+            self.fields.insert(point);
+        }
+    }
+
+    fn contains(&self, point: Point, dir: Direction) -> bool {
+        if self.with_directions {
+            self.fields_directions.contains(&(point, dir))
+        } else {
+            self.fields.contains(&point)
+        }
+    }
+
+    fn len(&self) -> usize {
+        if self.with_directions {
+            self.fields_directions.len()
+        } else {
+            self.fields.len()
+        }
+    }
+}
+
 fn mylee_internal(
     pcb: &Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
 ) -> Option<Vec<Belt>> {
@@ -42,13 +82,12 @@ fn mylee_internal(
     bounds.a += Vector::new(-2, -2);
     bounds.b += Vector::new(2, 2);
 
-    let mut visited_fields = HashSet::new();
-    let mut visited_field_directions = HashSet::new();
+    let mut visited = Visited::new(opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS));
 
     // TODO: there's probably a much better algorithm based around some kind of cost heuristic
     let mut walkers = vec![Mazewalker { pos: from, history: Vec::new() }];
     while !walkers.is_empty() {
-       // println!("{} walkers {} visited", walkers.len(), visited_fields.len());
+       // println!("{} walkers {} visited", walkers.len(), visited.len());
 
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
            // println!("{} vs {}", walker.pos, to);
@@ -81,21 +120,14 @@ fn mylee_internal(
                     // blocked with existing entity
                     continue;
                 }
-                if opts.contains(RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS) {
-                    if visited_field_directions.contains(&(goto, dir)) {
-                        continue;
-                    }
-                } else {
-                    if visited_fields.contains(&goto) {
-                        continue;
-                    }
+                if visited.contains(goto, dir) {
+                    continue;
                 }
                 if !bounds.contains(goto) {
                     continue;
                 }
 
-                visited_fields.insert(goto.clone());
-                visited_field_directions.insert((goto, dir));
+                visited.insert(goto, dir);
 
                 // normal belt in that direction
                 let new_history =
@@ -118,17 +150,16 @@ fn mylee_internal(
                         _ => (),
                     }
                     // we can't land directly on the field we want to reach with an underground belt
-                    if underground_end == to || visited_field_directions.contains(&(underground_end, dir)) || !bounds.contains(underground_end) {
+                    if underground_end == to || visited.contains(underground_end, dir) || !bounds.contains(underground_end) {
                         continue;
                     }
 
                     let goto = underground_end + dir.to_vector();
-                    if visited_field_directions.contains(&(goto, dir)) || !bounds.contains(goto) || pcb.is_blocked(goto) {
+                    if visited.contains(goto, dir) || !bounds.contains(goto) || pcb.is_blocked(goto) {
                         continue;
                     }
 
-                    visited_fields.insert(goto.clone());
-                    visited_field_directions.insert((goto, dir));
+                    visited.insert(goto, dir);
                     let new_history = walker.history.iter().copied().chain(iter::once(Belt::Underground { dir, gap })).collect();
                     if goto == to {
                         let mut path = walker.history;

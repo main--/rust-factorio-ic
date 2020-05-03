@@ -15,6 +15,7 @@ bitflags::bitflags! {
     pub struct RoutingOptimizations: u64 {
         const MYLEE_PREFER_SAME_DIRECTION = 0b00000001;
         const MYLEE_USE_UNDERGROUND_BELTS = 0b00000010;
+        const MYLEE_VISITED_WITH_DIRECTIONS = 0b00000100;
     }
 }
 

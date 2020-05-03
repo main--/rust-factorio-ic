@@ -19,3 +19,6 @@ either = "1.5.3"
 
 [features]
 render_wiring_steps = []
+
+[profile.release]
+debug = true

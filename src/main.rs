@@ -58,7 +58,8 @@ fn main() {
     // routing::route(&mut pcb, &mut needed_wires, routing::lee_pathfinder, RoutingOptimizations::empty());
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::empty());
-    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
+    // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
+    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS | RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS | RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
 
     println!("{}", render::blueprint(&pcb));
     println!("{}", render::ascii(&pcb));
