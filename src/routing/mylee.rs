@@ -53,14 +53,18 @@ fn mylee_internal(
         for walker in std::mem::replace(&mut walkers, Vec::new()) {
            // println!("{} vs {}", walker.pos, to);
 
-            let moveset = match walker.history.last() {
-                Some(Belt::Normal(dir)) if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION)
-                    => Either::Left(iter::once(dir).chain(moveset.iter())),
-                Some(Belt::Underground { dir, .. }) => Either::Right(Either::Left(ALL_DIRECTIONS.iter().filter(move |d| **d != dir.opposite_direction()))),
-                _ => Either::Right(Either::Right(moveset.iter())),
+            let base_moveset = match walker.history.last() {
+                Some(Belt::Underground { dir, .. }) => Either::Left(ALL_DIRECTIONS.iter().filter(move |d| **d != dir.opposite_direction())),
+                Some(Belt::Normal(_)) | None => Either::Right(moveset.iter()),
             };
 
-            for &dir in moveset {
+            let prefer_direction =  if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION) {
+                walker.history.last().map(Belt::direction)
+            } else {
+                None
+            };
+
+            for dir in prefer_direction.into_iter().chain(base_moveset.copied()) {
                 let goto = walker.pos + dir.to_vector();
                 if goto == to {
                     let mut walker = walker;
