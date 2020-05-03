@@ -33,7 +33,7 @@ fn main() {
     let (lins, lout) =
         placement::simple_grid(&tree, &mut grid_i, &mut pcb, &mut needed_wires, gridsize).unwrap();
 
-    let gap_upper = 3;
+    let gap_upper = 10;
     pcb.add_all(&[
         Entity { location: Point::new(0, -3 - gap_upper), function: Function::Belt(Direction::Up) },
         Entity { location: Point::new(0, -4 - gap_upper), function: Function::Belt(Direction::Up) },

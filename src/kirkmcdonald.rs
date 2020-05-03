@@ -62,7 +62,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
 
 pub fn needed_assemblers<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item = &'a str> + 'a> {
     let upstream = g.inputs.iter().flat_map(needed_assemblers);
-    if g.building == Some(Category::Assembler) {
+    if g.building == Some(Category::Assembler) || g.building == Some(Category::Furnace) {
         println!("i={}", g.inputs.len());
         Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
     } else {
