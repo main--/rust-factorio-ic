@@ -2,6 +2,7 @@ use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
 use crate::pcb::{Pcb, Point};
 use crate::recipe::Category;
+use crate::pcb::PcbImpl;
 
 pub fn gridrender_subtree(
     subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Pcb,

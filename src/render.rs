@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point};
 use crate::routing::Belt;
+use crate::pcb::PcbImpl;
 
 #[must_use]
 pub fn ascii(pcb: &Pcb) -> String {

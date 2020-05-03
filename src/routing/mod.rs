@@ -2,6 +2,7 @@ use fehler::throws;
 
 use crate::render;
 use crate::pcb::{Pcb, NeededWires, Entity, Function, Point, Direction};
+use crate::pcb::PcbImpl;
 
 mod leemaze_lib;
 mod mylee;
@@ -64,7 +65,7 @@ fn reduce_gratuitous_undergrounds(pcb: &mut Pcb) {
     collapse_underground_oneway(pcb, false);
 }
 fn collapse_underground_oneway(pcb: &mut Pcb, down: bool) {
-    let mut candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
+    let candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
         Function::UndergroundBelt(d, mode) if mode == down => Some((e.location, d)),
         _ => None,
     }).collect();

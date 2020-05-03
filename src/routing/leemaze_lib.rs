@@ -3,6 +3,7 @@ use fehler::throws;
 use crate::pcb::{Pcb, Direction, Point, ALL_DIRECTIONS};
 use crate::render;
 use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
+use crate::pcb::PcbImpl;
 
 #[throws(())]
 pub fn lee_pathfinder(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), _: RoutingOptimizations) {

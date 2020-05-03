@@ -4,9 +4,10 @@ use std::iter;
 use fehler::throws;
 use either::Either;
 
-use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
+use crate::pcb::{self, Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
 use crate::render;
 use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
+use crate::pcb::PcbImpl;
 
 // # Types of wires:
 //
@@ -106,7 +107,7 @@ fn mylee_internal(
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
     // and the connection loop
-    let mut bounds = pcb.entity_rect();
+    let mut bounds = pcb::entity_rect(pcb.entities());
     bounds.a += Vector::new(-2, -2);
     bounds.b += Vector::new(2, 2);
 
