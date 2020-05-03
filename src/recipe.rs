@@ -73,6 +73,7 @@ data = Importer:create()
         for item in inner.sequence_values::<Table>() {
             let item = item?;
             if item.get::<_, String>("type")? == "recipe" {
+                let cat: String = item.get("category").unwrap_or("crafting".to_owned());
                 // ignore expensive mode
                 let item = if item.contains_key("expensive")? { item.get("normal")? } else { item };
 
@@ -83,7 +84,6 @@ data = Importer:create()
                     _ => normalize_item_spec(item.get("results")?)?,
                 };
 
-                let cat: String = item.get("category").unwrap_or("crafting".to_owned());
                 let category = if cat == "crafting"
                     || cat == "advanced-crafting"
                     || cat == "crafting-with-fluid"
