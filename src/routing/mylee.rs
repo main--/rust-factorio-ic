@@ -6,19 +6,19 @@ use fnv::FnvHashSet;
 
 use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
 use crate::render;
-use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
+use crate::routing::{apply_lee_path, Belt, insert_underground_belts};
 
-// # Types of wires:
-//
-// One-to-many: One gears assembler feeds many automation science pack assemblers
-// Trivial implementation: Belt connection
-// Many-to-one
-// Trivial implementation: Belt connection
-// Lane merge
-// Trivial implementation: L+R construction
+bitflags::bitflags! {
+    pub struct Options: u64 {
+        const PREFER_SAME_DIRECTION = 0b00000001;
+        const USE_UNDERGROUND_BELTS = 0b00000010;
+        const VISITED_WITH_DIRECTIONS = 0b00000100;
+    }
+}
+
 
 #[throws(())]
-pub fn mylee(pcb: &mut impl Pcb, from: Point, to: Point, opts: RoutingOptimizations) {
+pub fn mylee(pcb: &mut impl Pcb, from: Point, to: Point, opts: Options) {
     let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts).ok_or(())?;
 
     apply_lee_path(pcb, from, path);
@@ -98,7 +98,7 @@ impl Visited {
 }
 
 fn mylee_internal(
-    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
+    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options
 ) -> Option<Vec<Belt>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -107,7 +107,7 @@ fn mylee_internal(
     bounds.a += Vector::new(-2, -2);
     bounds.b += Vector::new(2, 2);
 
-    let mut visited = Visited::new(opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS));
+    let mut visited = Visited::new(opts.contains(Options::VISITED_WITH_DIRECTIONS));
 
     // TODO: there's probably a much better algorithm based around some kind of cost heuristic
     let mut walkers = vec![Mazewalker { pos: from, history: Vec::new() }];
@@ -122,7 +122,7 @@ fn mylee_internal(
                 Some(Belt::Normal(_)) | None => Either::Right(moveset.iter()),
             };
 
-            let prefer_direction =  if opts.contains(RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION) {
+            let prefer_direction =  if opts.contains(Options::PREFER_SAME_DIRECTION) {
                 walker.history.last().map(Belt::direction)
             } else {
                 None
@@ -133,7 +133,7 @@ fn mylee_internal(
                 if goto == to {
                     let mut path = walker.history;
                     path.push(Belt::Normal(dir));
-                    if !opts.contains(RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS) {
+                    if !opts.contains(Options::USE_UNDERGROUND_BELTS) {
                         path = insert_underground_belts(path.into_iter().map(|b| match b {
                             Belt::Normal(d) => d,
                             _ => unreachable!(),
@@ -142,7 +142,7 @@ fn mylee_internal(
                     return Some(path);
                 }
                 if pcb.is_blocked(goto) || visited.contains(goto, dir) || !bounds.contains(goto)
-                    || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
+                    || (opts.contains(Options::VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
                 {
                     continue;
                 }
@@ -156,7 +156,7 @@ fn mylee_internal(
             }
 
             // underground belts in the direction the last belt is pointing
-            if opts.contains(RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS) {
+            if opts.contains(Options::USE_UNDERGROUND_BELTS) {
                 let dir = match walker.history.last() {
                     Some(belt) => belt.direction(),
                     None => continue,
@@ -171,14 +171,14 @@ fn mylee_internal(
                     }
                     // we can't land directly on the field we want to reach with an underground belt
                     if underground_end == to || visited.contains(underground_end, dir) || !bounds.contains(underground_end)
-                        || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(underground_end))
+                        || (opts.contains(Options::VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(underground_end))
                     {
                         continue;
                     }
 
                     let goto = underground_end + dir.to_vector();
                     if visited.contains(goto, dir) || !bounds.contains(goto) || pcb.is_blocked(goto)
-                        || (opts.contains(RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
+                        || (opts.contains(Options::VISITED_WITH_DIRECTIONS) && walker.conflicts_with_own_path(goto))
                     {
                         continue;
                     }

@@ -7,17 +7,9 @@ mod leemaze_lib;
 mod mylee;
 
 pub use leemaze_lib::lee_pathfinder;
-pub use mylee::mylee as mylee;
+pub use mylee::{mylee as mylee, Options as MyleeOptions};
 use std::convert::TryInto;
 use rand::prelude::*;
-
-bitflags::bitflags! {
-    pub struct RoutingOptimizations: u64 {
-        const MYLEE_PREFER_SAME_DIRECTION = 0b00000001;
-        const MYLEE_USE_UNDERGROUND_BELTS = 0b00000010;
-        const MYLEE_VISITED_WITH_DIRECTIONS = 0b00000100;
-    }
-}
 
 pub fn route<P: Pcb>(pcb: &mut P, mut needed_wires: NeededWires, pathfinder_fn: impl Fn(&mut P, Point, Point) -> Result<(), ()>) {
     // simulated annealing-ish to choose wiring order

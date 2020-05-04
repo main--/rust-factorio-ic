@@ -24,7 +24,7 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, Point,
 
     println!("rendering {} wires", needed_wires.len());
 
-    //routing::route(&mut pcb, needed_wires, |pcb, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::empty()));
+    //routing::route(&mut pcb, needed_wires, |pcb, f, t| routing::mylee(pcb, f, t, MyleeOptimizations::empty()));
     routing::route(&mut pcb, needed_wires, pathfinder);
 
     println!("{}", render::blueprint(&pcb));
@@ -34,15 +34,15 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, Point,
 #[cfg(test)]
 mod test {
     use super::pcb::{Pcb, GridPcb, HashmapPcb as HashPcb};
-    use super::routing::{self, RoutingOptimizations};
+    use super::routing::{self, MyleeOptions};
 
 
     fn run_leemaze<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::lee_pathfinder(pcb, f, t)); }
-    fn run_mylee_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::empty())); }
-    fn run_mylee_bad_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION)); }
-    fn run_mylee_underground_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS)); }
-    fn run_good<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS | RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS)); }
-    fn run_mylee_underground_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS | RoutingOptimizations::MYLEE_VISITED_WITH_DIRECTIONS | RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION)); }
+    fn run_mylee_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::empty())); }
+    fn run_mylee_bad_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::PREFER_SAME_DIRECTION)); }
+    fn run_mylee_underground_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS)); }
+    fn run_good<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS)); }
+    fn run_mylee_underground_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS | MyleeOptions::PREFER_SAME_DIRECTION)); }
 
     #[test] fn automation_0_75_grid() { run_good::<GridPcb>("automation-science-pack", 0.75) }
     #[test] fn automation_0_75_hash() { run_good::<HashPcb>("automation-science-pack", 0.75) }
