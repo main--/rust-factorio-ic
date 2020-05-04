@@ -1,8 +1,8 @@
-use std::collections::HashSet;
 use std::iter;
 
 use fehler::throws;
 use either::Either;
+use fnv::FnvHashSet;
 
 use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
 use crate::render;
@@ -59,16 +59,16 @@ impl Mazewalker {
 
 struct Visited {
     with_directions: bool,
-    fields: HashSet<Point>,
-    fields_directions: HashSet<(Point,Direction)>,
+    fields: FnvHashSet<Point>,
+    fields_directions: FnvHashSet<(Point,Direction)>,
 }
 
 impl Visited {
     fn new(with_directions: bool) -> Visited {
         Visited {
             with_directions,
-            fields: HashSet::new(),
-            fields_directions: HashSet::new(),
+            fields: Default::default(),
+            fields_directions: Default::default(),
         }
     }
 
