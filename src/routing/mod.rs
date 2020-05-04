@@ -98,12 +98,12 @@ fn try_wiring<P: Pcb>(mut pcb: P,
     needed_wires: &NeededWires,
     pathfinder_fn: &impl Fn(&mut P, Point, Point) -> Result<(), ()>,
 ) -> P {
-    for (i, &((from_x, from_y), (to_x, to_y))) in needed_wires.iter().enumerate() {
+    for (i, &(from, to)) in needed_wires.iter().enumerate() {
         // render_blueprint_ascii(&pcb);
         #[cfg(feature = "render_wiring_steps")]
         println!("{}", render::ascii(&pcb));
 
-        pathfinder_fn(&mut pcb, Point::new(from_x, from_y), Point::new(to_x, to_y)).map_err(|()| i)?;
+        pathfinder_fn(&mut pcb, from, to).map_err(|()| i)?;
     }
     pcb
 }
