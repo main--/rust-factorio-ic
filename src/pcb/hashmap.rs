@@ -2,7 +2,6 @@ use fnv::FnvHashMap;
 use std::borrow::Borrow;
 use std::slice::Iter;
 use std::iter::FilterMap;
-use std::mem;
 
 use super::*;
 

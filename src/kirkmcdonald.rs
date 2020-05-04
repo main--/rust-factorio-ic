@@ -1,5 +1,3 @@
-use std::iter;
-
 use crate::recipe::{Category, Recipe};
 
 #[derive(Debug)]

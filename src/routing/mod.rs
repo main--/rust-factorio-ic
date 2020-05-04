@@ -175,7 +175,7 @@ fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut impl Pcb, from: Point,
             Belt::Normal(dir) => {
                 add_beginning(Entity { location: cursor, function: Function::Belt(dir) });
             },
-            Belt::Underground { dir, gap } => {
+            Belt::Underground { dir, .. } => {
                 add_beginning(Entity {
                     location: cursor,
                     function: Function::UndergroundBelt(dir, true),
