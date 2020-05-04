@@ -18,10 +18,7 @@ use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_undergro
 // Trivial implementation: L+R construction
 
 #[throws(())]
-pub fn mylee(pcb: &mut impl Pcb, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
-    let from = Point::new(from.0, from.1);
-    let to = Point::new(to.0, to.1);
-
+pub fn mylee(pcb: &mut impl Pcb, from: Point, to: Point, opts: RoutingOptimizations) {
     let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts).ok_or(())?;
 
     apply_lee_path(pcb, from, path);

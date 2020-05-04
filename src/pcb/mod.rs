@@ -93,7 +93,7 @@ impl Rect {
     }
 }
 
-pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
+pub type NeededWires = Vec<(Point, Point)>;
 
 
 pub trait Pcb: Default + Clone where for<'a> Self: PcbRef<'a> {

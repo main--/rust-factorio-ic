@@ -49,9 +49,9 @@ fn main() {
             function: Function::Belt(Direction::Down),
         });
     }
-    needed_wires.push((lout, (0, -3 - gap_upper)));
+    needed_wires.push((lout, Point::new(0, -3 - gap_upper)));
     for (i, lin) in lins.into_iter().enumerate().rev() {
-        needed_wires.push(((i as i32 + 1, -3 - gap_upper), lin));
+        needed_wires.push((Point::new(i as i32 + 1, -3 - gap_upper), lin));
     }
 
     println!("rendering {} wires", needed_wires.len());
@@ -60,7 +60,7 @@ fn main() {
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_PREFER_SAME_DIRECTION);
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::empty());
     // routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
-    routing::route(&mut pcb, &mut needed_wires, routing::mylee, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS);
+    routing::route(&mut pcb, needed_wires, |pcb, f, t| routing::mylee(pcb, f, t, RoutingOptimizations::MYLEE_USE_UNDERGROUND_BELTS));
 
     println!("{}", render::blueprint(&pcb));
     println!("{}", render::ascii(&pcb));
