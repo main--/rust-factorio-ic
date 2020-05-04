@@ -13,6 +13,8 @@ pub struct GridPcb {
 
     grid_origin: Vector,
     grid: Array2<usize>, // contains index in enities + 1 (zero is none)
+
+    entity_rect: CachedEntityRect,
 }
 
 impl Default for GridPcb {
@@ -22,6 +24,8 @@ impl Default for GridPcb {
 
             grid_origin: Vector::new(0, 0),
             grid: Array2::zeros((0, 0)),
+
+            entity_rect: Default::default(),
         }
     }
 }
@@ -69,6 +73,10 @@ impl<'a> PcbRef<'a> for GridPcb {
     fn entities(&'a self) -> Self::EntityIter {
         self.entities.iter().filter_map(Option::as_ref)
     }
+
+    fn entity_rect(&'a self) -> Rect {
+        self.entity_rect.rect()
+    }
 }
 
 impl Pcb for GridPcb {
@@ -76,6 +84,7 @@ impl Pcb for GridPcb {
         let entity = entity.borrow();
         let index = self.entities.len();
         self.entities.push(Some(entity.clone()));
+        self.entity_rect.update(entity);
 
         while self.place_entity_on_grid(entity, index).is_none() {
             self.resize_grid();

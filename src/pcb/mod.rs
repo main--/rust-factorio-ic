@@ -71,6 +71,10 @@ impl Entity {
         self.size_x() // currently everything is quadratic
     }
 
+    pub fn size(&self) -> Vector {
+        Vector::new(self.size_x(), self.size_y())
+    }
+
     pub fn overlaps(&self, p: Point) -> bool {
         (self.location.x <= p.x)
             && (self.location.x + self.size_x() > p.x)
@@ -131,6 +135,29 @@ pub trait PcbRef<'a> {
             a: Point::new(min_x, min_y),
             b: Point::new(max_x, max_y),
         }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct CachedEntityRect(Option<Rect>);
+impl CachedEntityRect {
+    fn update(&mut self, e: &Entity) {
+        match self.0 {
+            None => self.0 = Some(Rect { a: e.location, b: e.location + e.size() }),
+            Some(Rect { ref mut a, ref mut b }) => {
+                let l1 = e.location;
+                let l2 = l1 + e.size();
+
+                a.x = a.x.min(l1.x);
+                b.x = b.x.max(l2.x);
+                a.y = a.y.min(l1.y);
+                b.y = b.y.max(l2.y);
+            }
+        }
+    }
+
+    fn rect(&self) -> Rect {
+        self.0.clone().unwrap_or(Rect { a: Point::origin(), b: Point::origin() })
     }
 }
 
