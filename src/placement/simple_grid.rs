@@ -1,9 +1,56 @@
+//! very simple and stupid grid placer
+
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
 use crate::pcb::{Pcb, Point, Vector, NeededWires};
 use crate::recipe::Category;
 
-pub fn gridrender_subtree(
+use std::iter;
+
+
+pub fn simple_grid(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
+    let needed_assemblers = needed_cells(&tree).count();
+
+    let gridsize = (needed_assemblers as f64).sqrt().ceil() as i32;
+    println!("gridsize={}", gridsize);
+
+    let mut grid_i = 0;
+    let mut needed_wires = NeededWires::new();
+    let (lins, lout) = gridrender_subtree(&tree, &mut grid_i, pcb, &mut needed_wires, gridsize).unwrap();
+
+    let gap_upper = 10;
+    pcb.add_all(&[
+        Entity { location: Point::new(0, -3 - gap_upper), function: Function::Belt(Direction::Up) },
+        Entity { location: Point::new(0, -4 - gap_upper), function: Function::Belt(Direction::Up) },
+    ]);
+    for i in 0..lins.len() {
+        pcb.add(Entity {
+            location: Point::new(i as i32 + 1, -3 - gap_upper),
+            function: Function::Belt(Direction::Down),
+        });
+        pcb.add(Entity {
+            location: Point::new(i as i32 + 1, -4 - gap_upper),
+            function: Function::Belt(Direction::Down),
+        });
+    }
+    needed_wires.push((lout, Point::new(0, -3 - gap_upper)));
+    for (i, lin) in lins.into_iter().enumerate().rev() {
+        needed_wires.push((Point::new(i as i32 + 1, -3 - gap_upper), lin));
+    }
+    needed_wires
+}
+
+fn needed_cells<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item = &'a str> + 'a> {
+    let upstream = g.inputs.iter().flat_map(needed_cells);
+    if g.building == Some(Category::Assembler) || g.building == Some(Category::Furnace) {
+        println!("i={}", g.inputs.len());
+        Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
+    } else {
+        Box::new(upstream)
+    }
+}
+
+fn gridrender_subtree(
     subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut impl Pcb,
     needed_wires: &mut NeededWires, gridsize: i32,
 ) -> Option<(Vec<Point>, Point)> {
