@@ -1,6 +1,7 @@
 use nalgebra::geometry::Point2;
 use nalgebra::base::Vector2;
 use std::borrow::Borrow;
+use std::i32;
 
 pub type Point = Point2<i32>;
 pub type Vector = Vector2<i32>;
