@@ -47,13 +47,13 @@ pub fn ascii_wire(pcb: &impl Pcb, from: Point,  wire: impl IntoIterator<Item=imp
 }
 
 #[must_use]
-pub fn ascii_wire_to_route(rows: &Vec<Vec<bool>>, from: (i32, i32), to: (i32, i32)) -> String {
+pub fn ascii_wire_to_route(rows: &Vec<Vec<bool>>, from: Point, to: Point) -> String {
     let mut res = String::with_capacity(1024);
     for (y, row) in rows.iter().enumerate() {
         for (x, val) in row.iter().copied().enumerate() {
-            if (x as i32, y as i32) == to {
+            if Point::new(x as i32, y as i32) == to {
                 res.push('T');
-            } else if (x as i32, y as i32) == from {
+            } else if Point::new(x as i32, y as i32) == from {
                 res.push('F');
             } else if val {
                 res.push('X');
