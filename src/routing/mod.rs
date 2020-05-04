@@ -167,7 +167,7 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<Bel
 fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut impl Pcb, from: Point, path: I) where I::IntoIter: Clone {
     let mut cursor = from;
     let path = path.into_iter();
-    // println!("{}", render::ascii_wire(pcb, from, path.clone(), pcb.grid_capacity()));
+    // println!("{}", render::ascii_wire(pcb, from, path.clone(), pcb.entity_rect().pad(1)));
     for (i, belt) in path.enumerate() {
         let mut add_beginning = |x| if i == 0 { pcb.replace(x) } else { pcb.add(x) };
 

@@ -183,6 +183,7 @@ fn mylee_internal(
                         continue;
                     }
 
+                    visited.insert(underground_end, dir);
                     visited.insert(goto, dir);
                     let mut new_history = walker.history.clone();
                     new_history.push(Belt::Underground { dir, gap });

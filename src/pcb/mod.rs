@@ -92,6 +92,15 @@ pub struct Rect {
 }
 
 impl Rect {
+    pub fn pad(&self, padding: i32) -> Rect {
+        Rect {
+            a: Point::new(self.a.x - padding, self.a.y - padding),
+            b: Point::new(self.b.x + padding, self.b.y + padding),
+        }
+    }
+}
+
+impl Rect {
     pub fn contains(&self, point: Point) -> bool {
         self.a.x <= point.x && point.x < self.b.x
         && self.a.y <= point.y && point.y < self.b.y
