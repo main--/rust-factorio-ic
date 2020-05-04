@@ -19,7 +19,7 @@ bitflags::bitflags! {
     }
 }
 
-pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
+pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn: impl Fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
     // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
@@ -28,7 +28,7 @@ pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn:
     let mut total_depth = 0;
 
     loop {
-        match try_wiring(pcb.clone(), &needed_wires, pathfinder_fn, optimizations) {
+        match try_wiring(pcb.clone(), &needed_wires, &pathfinder_fn, optimizations) {
             Ok(p) => {
                 *pcb = p;
                 total_tries += 1;
@@ -96,7 +96,7 @@ fn collapse_underground_oneway(pcb: &mut impl Pcb, down: bool) {
 #[throws(usize)]
 fn try_wiring<P: Pcb>(mut pcb: P,
     needed_wires: &NeededWires,
-    pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
+    pathfinder_fn: &impl Fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
     opts: RoutingOptimizations,
 ) -> P {
     for (i, &(from, to)) in needed_wires.iter().enumerate() {
