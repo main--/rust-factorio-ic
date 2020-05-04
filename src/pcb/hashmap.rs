@@ -2,6 +2,7 @@ use fnv::FnvHashMap;
 use std::borrow::Borrow;
 use std::slice::Iter;
 use std::iter::FilterMap;
+use std::mem;
 
 use super::*;
 
@@ -26,16 +27,17 @@ impl Pcb for HashmapPcb {
 
         self.entities.push(Some(entity.clone()));
 
-        for tile in entity_tiles(entity) {
+        for tile in entity_tiles(entity, Vector::zeros()) {
             let prev = self.grid.insert(tile, index);
             assert!(prev.is_none());
         }
     }
 
     fn remove_at(&mut self, point: Point) {
-        if let Some(i) = self.grid.remove(&point) {
-            if let Some(e) = std::mem::replace(&mut self.entities[i], None) {
-                for tile in entity_tiles(&e) { self.grid.remove(&tile); }
+        let prev_entity = self.grid.remove(&point).and_then(|i| self.entities[i].take());
+        if let Some(e) = prev_entity {
+            for tile in entity_tiles(&e, Vector::zeros()) {
+                self.grid.remove(&tile);
             }
         }
     }

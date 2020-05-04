@@ -134,9 +134,9 @@ pub trait PcbRef<'a> {
     }
 }
 
-fn entity_tiles<'a>(entity: &'a Entity) -> impl Iterator<Item=Point> + 'a {
+fn entity_tiles<'a>(entity: &'a Entity, offset: Vector) -> impl Iterator<Item=Point> + 'a {
     let tiles = (0..entity.size_x()).flat_map(move |x| (0..entity.size_y()).map(move |y| Point::new(x, y)));
     let tiles_origin = entity.location.coords;
-    tiles.map(move |t| t + tiles_origin)
+    tiles.map(move |t| t + tiles_origin - offset)
 }
 

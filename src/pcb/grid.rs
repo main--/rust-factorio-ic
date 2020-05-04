@@ -3,6 +3,7 @@ use fehler::throws;
 use std::borrow::Borrow;
 use std::slice::Iter;
 use std::iter::FilterMap;
+use std::mem;
 
 use super::*;
 
@@ -55,10 +56,7 @@ impl GridPcb {
 
     #[throws(as Option)]
     fn place_entity_on_grid(&mut self, entity: &Entity, index: usize) {
-        let tiles = (0..entity.size_x()).flat_map(|x| (0..entity.size_y()).map(move |y| Point::new(x, y)));
-        let tiles_origin = Vector::new(entity.location.x, entity.location.y) - self.grid_origin;
-        let tiles = tiles.map(|t| t + tiles_origin);
-        for tile in tiles {
+        for tile in entity_tiles(&entity, self.grid_origin) {
             let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
             let entities = &self.entities;
             assert!((*tile).checked_sub(1).and_then(|i| entities[i].as_ref()).is_none(), "Conflicting entities");
@@ -86,10 +84,14 @@ impl Pcb for GridPcb {
 
     fn remove_at(&mut self, point: Point) {
         let grid_idx = point - self.grid_origin;
-        if let Some(i) = self.grid.get((grid_idx.x as usize, grid_idx.y as usize)).and_then(|i| i.checked_sub(1)) {
-            // TODO: this leaves the index values in the grid dangling, which is not a problem but also
-            //       prevents us from ever re-using the gaps
-            self.entities[i] = None;
+        let prev_entity = self.grid.get((grid_idx.x as usize, grid_idx.y as usize))
+            .and_then(|i| i.checked_sub(1))
+            .and_then(|i| self.entities[i].take());
+
+        if let Some(entity) = prev_entity {
+            for tile in entity_tiles(&entity, self.grid_origin) {
+                *self.grid.get_mut((tile.x as usize, tile.y as usize)).unwrap() = 0;
+            }
         }
     }
     fn entity_at(&self, point: Point) -> Option<&Entity> {
