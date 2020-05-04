@@ -19,7 +19,7 @@ bitflags::bitflags! {
     }
 }
 
-pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn: impl Fn(&mut P, Point, Point) -> Result<(), ()>) {
+pub fn route<P: Pcb>(pcb: &mut P, mut needed_wires: NeededWires, pathfinder_fn: impl Fn(&mut P, Point, Point) -> Result<(), ()>) {
     // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
