@@ -96,10 +96,7 @@ impl Rect {
 pub type NeededWires = Vec<((i32, i32), (i32, i32))>;
 
 
-pub trait Pcb<'a>: Default + Clone {
-    type EntityIter: Iterator<Item=&'a Entity> + Clone;
-    fn entities(&'a self) -> Self::EntityIter;
-
+pub trait Pcb: Default + Clone where for<'a> Self: PcbRef<'a> {
     fn add(&mut self, entity: impl Borrow<Entity>);
     fn add_all<I>(&mut self, iter: I) where I: IntoIterator, I::Item: Borrow<Entity> {
         for e in iter { self.add(e); }
@@ -114,7 +111,11 @@ pub trait Pcb<'a>: Default + Clone {
     fn is_blocked(&self, point: Point) -> bool {
         self.entity_at(point).is_some()
     }
+}
 
+pub trait PcbRef<'a> {
+    type EntityIter: Iterator<Item=&'a Entity> + Clone;
+    fn entities(&'a self) -> Self::EntityIter;
     fn entity_rect(&'a self) -> Rect {
         let mut min_x = i32::MAX;
         let mut max_x = i32::MIN;

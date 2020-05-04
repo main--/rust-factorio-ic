@@ -4,7 +4,7 @@ use std::iter;
 use fehler::throws;
 use either::Either;
 
-use crate::pcb::{self, Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
+use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
 use crate::render;
 use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_underground_belts};
 
@@ -18,7 +18,7 @@ use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_undergro
 // Trivial implementation: L+R construction
 
 #[throws(())]
-pub fn mylee<'a>(pcb: &'a mut impl Pcb<'a>, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
+pub fn mylee(pcb: &mut impl Pcb, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
     let from = Point::new(from.0, from.1);
     let to = Point::new(to.0, to.1);
 
@@ -100,8 +100,8 @@ impl Visited {
     }
 }
 
-fn mylee_internal<'a>(
-    pcb: &'a impl Pcb<'a>, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
+fn mylee_internal(
+    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
 ) -> Option<Vec<Belt>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in

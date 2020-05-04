@@ -1,4 +1,3 @@
-use fnv::FnvHashMap;
 use std::borrow::Borrow;
 use std::slice::Iter;
 
@@ -10,12 +9,14 @@ pub struct NaivePcb {
     entities: Vec<Entity>,
 }
 
-impl<'a> Pcb<'a> for NaivePcb {
+impl<'a> PcbRef<'a> for NaivePcb {
     type EntityIter = Iter<'a, Entity>;
     fn entities(&'a self) -> Self::EntityIter {
         self.entities.iter()
     }
+}
 
+impl Pcb for NaivePcb {
     fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
 

@@ -1,6 +1,4 @@
 use ndarray::{s, Array2};
-use nalgebra::geometry::Point2;
-use nalgebra::base::Vector2;
 use fehler::throws;
 use std::borrow::Borrow;
 use std::slice::Iter;
@@ -68,12 +66,14 @@ impl GridPcb {
         }
     }
 }
-impl<'a> Pcb<'a> for GridPcb {
+impl<'a> PcbRef<'a> for GridPcb {
     type EntityIter = FilterMap<Iter<'a, Option<Entity>>, fn(&Option<Entity>) -> Option<&Entity>>;
     fn entities(&'a self) -> Self::EntityIter {
         self.entities.iter().filter_map(Option::as_ref)
     }
+}
 
+impl Pcb for GridPcb {
     fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
         let index = self.entities.len();
@@ -105,13 +105,13 @@ impl<'a> Pcb<'a> for GridPcb {
 mod test {
     use super::*;
 
-    fn pcb_invariant(pcb: &Pcb) {
+    fn pcb_invariant(pcb: &GridPcb) {
         let s = pcb.grid.shape();
         for x in 0..s[0] {
             for y in 0..s[1] {
                 let v = Vector::new(x as i32, y as i32);
                 let gp = pcb.grid_origin + v;
-                let confl = pcb.entities().enumerate().filter(|(_, e)| e.overlaps(gp.x, gp.y)).map(|(i, _)| i).next();
+                let confl = pcb.entities().enumerate().filter(|(_, e)| e.overlaps(Point { coords: gp })).map(|(i, _)| i).next();
                 let idx = pcb.grid[(x as usize, y as usize)];
                 assert_eq!(confl.map(|i| i + 1).unwrap_or(0), idx);
             }
@@ -120,7 +120,7 @@ mod test {
 
     #[test]
     fn pcb_works() {
-        let mut pcb = Pcb::default();
+        let mut pcb = GridPcb::default();
         pcb_invariant(&pcb);
 
         pcb.add(&Entity { location: Point::new(42, 69), function: Function::Belt(Direction::Up) });

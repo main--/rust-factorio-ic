@@ -19,7 +19,7 @@ bitflags::bitflags! {
     }
 }
 
-pub fn route<'a, P: Pcb<'a>>(pcb: &'a mut P, needed_wires: &mut NeededWires, pathfinder_fn: fn(&'a mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
+pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
     // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
@@ -59,11 +59,11 @@ pub fn route<'a, P: Pcb<'a>>(pcb: &'a mut P, needed_wires: &mut NeededWires, pat
     }
 }
 
-fn reduce_gratuitous_undergrounds<'a>(pcb: &'a mut impl Pcb<'a>) {
+fn reduce_gratuitous_undergrounds(pcb: &mut impl Pcb) {
     collapse_underground_oneway(pcb, true);
     collapse_underground_oneway(pcb, false);
 }
-fn collapse_underground_oneway<'a>(pcb: &'a mut impl Pcb<'a>, down: bool) {
+fn collapse_underground_oneway(pcb: &mut impl Pcb, down: bool) {
     let candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
         Function::UndergroundBelt(d, mode) if mode == down => Some((e.location, d)),
         _ => None,
@@ -94,9 +94,9 @@ fn collapse_underground_oneway<'a>(pcb: &'a mut impl Pcb<'a>, down: bool) {
 
 
 #[throws(usize)]
-fn try_wiring<'a, P: Pcb<'a>>(mut pcb: P,
+fn try_wiring<P: Pcb>(mut pcb: P,
     needed_wires: &NeededWires,
-    pathfinder_fn: fn(&'a mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
+    pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
     opts: RoutingOptimizations,
 ) -> P {
     for (i, &(from, to)) in needed_wires.iter().enumerate() {
@@ -165,7 +165,7 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<Bel
 }
 
 
-fn apply_lee_path<'a, I: IntoIterator<Item = Belt>>(pcb: &mut impl Pcb<'a>, from: Point, path: I) where I::IntoIter: Clone {
+fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut impl Pcb, from: Point, path: I) where I::IntoIter: Clone {
     let mut cursor = from;
     for (i, belt) in path.into_iter().enumerate() {
         let mut add_beginning = |x| if i == 0 { pcb.replace(x) } else { pcb.add(x) };

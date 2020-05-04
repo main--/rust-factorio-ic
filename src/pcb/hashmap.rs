@@ -12,12 +12,14 @@ pub struct HashmapPcb {
     grid: FnvHashMap<Point, usize>,
 }
 
-impl<'a> Pcb<'a> for HashmapPcb {
+impl<'a> PcbRef<'a> for HashmapPcb {
     type EntityIter = FilterMap<Iter<'a, Option<Entity>>, fn(&Option<Entity>) -> Option<&Entity>>;
     fn entities(&'a self) -> Self::EntityIter {
         self.entities.iter().filter_map(Option::as_ref)
     }
+}
 
+impl Pcb for HashmapPcb {
     fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
         let index = self.entities.len();
