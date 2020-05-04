@@ -41,8 +41,7 @@ pub fn gridrender_subtree(
             let cell_size_x = 15;
             let cell_size_y = 10;
 
-            let startx = cell_size_x * grid_x;
-            let starty = cell_size_y * grid_y;
+            let start = Point::new(cell_size_x * grid_x, cell_size_y * grid_y);
 
             let main_function = match subtree.building {
                 Some(Category::Assembler) => Function::Assembler { recipe: subtree.output.clone() },
@@ -52,26 +51,26 @@ pub fn gridrender_subtree(
 
             pcb.add_all(&[
                 Entity {
-                    location: Point::new(startx + 2, starty + 0),
+                    location: start + Vector::new(2, 0),
                     function: main_function,
                 },
                 // output belt
-                Entity { location: Point::new(startx + 0, starty + 0), function: Function::Belt(Direction::Down) },
-                Entity { location: Point::new(startx + 0, starty + 1), function: Function::Belt(Direction::Down) },
-                Entity { location: Point::new(startx + 0, starty + 2), function: Function::Belt(Direction::Down) },
+                Entity { location: start + Vector::new(0, 0), function: Function::Belt(Direction::Down) },
+                Entity { location: start + Vector::new(0, 1), function: Function::Belt(Direction::Down) },
+                Entity { location: start + Vector::new(0, 2), function: Function::Belt(Direction::Down) },
                 Entity {
-                    location: Point::new(startx + 1, starty + 1),
+                    location: start + Vector::new(1, 1),
                     function: Function::Inserter {
                         orientation: Direction::Left,
                         long_handed: false,
                     },
                 },
                 // input belt
-                Entity { location: Point::new(startx + 6, starty + 0), function: Function::Belt(Direction::Left) },
-                Entity { location: Point::new(startx + 6, starty + 1), function: Function::Belt(Direction::Up) },
-                Entity { location: Point::new(startx + 6, starty + 2), function: Function::Belt(Direction::Up) },
+                Entity { location: start + Vector::new(6, 0), function: Function::Belt(Direction::Left) },
+                Entity { location: start + Vector::new(6, 1), function: Function::Belt(Direction::Up) },
+                Entity { location: start + Vector::new(6, 2), function: Function::Belt(Direction::Up) },
                 Entity {
-                    location: Point::new(startx + 5, starty + 0),
+                    location: start + Vector::new(5, 0),
                     function: Function::Inserter {
                         orientation: Direction::Left,
                         long_handed: false,
@@ -79,27 +78,27 @@ pub fn gridrender_subtree(
                 },
             ]);
             if let Some(prev) = prev {
-                needed_wires.push((prev + Vector::new(0, 2), Point::new(startx + 0, starty + 0)));
-                needed_wires.push((Point::new(startx + 6, starty + 0), prev + Vector::new(6, 2)));
+                needed_wires.push((prev + Vector::new(0, 2), start + Vector::new(0, 0)));
+                needed_wires.push((start + Vector::new(6, 0), prev + Vector::new(6, 2)));
             }
 
             if second_input_belt {
                 pcb.add_all(&[
                     // input belt 2
                     Entity {
-                        location: Point::new(startx + 7, starty + 0),
+                        location: start + Vector::new(7, 0),
                         function: Function::Belt(Direction::Down),
                     },
                     Entity {
-                        location: Point::new(startx + 7, starty + 1),
+                        location: start + Vector::new(7, 1),
                         function: Function::Belt(Direction::Up),
                     },
                     Entity {
-                        location: Point::new(startx + 7, starty + 2),
+                        location: start + Vector::new(7, 2),
                         function: Function::Belt(Direction::Up),
                     },
                     Entity {
-                        location: Point::new(startx + 5, starty + 1),
+                        location: start + Vector::new(5, 1),
                         function: Function::Inserter {
                             orientation: Direction::Left,
                             long_handed: true,
@@ -107,11 +106,11 @@ pub fn gridrender_subtree(
                     },
                 ]);
                 if let Some(prev) = prev {
-                    needed_wires.push((Point::new(startx + 7, starty + 0), prev + Vector::new(7, 2)));
+                    needed_wires.push((start + Vector::new(7, 0), prev + Vector::new(7, 2)));
                 }
             }
 
-            prev = Some(Point::new(startx, starty));
+            prev = Some(start);
             *grid_i += 1;
         }
 
