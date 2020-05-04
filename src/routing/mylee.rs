@@ -18,7 +18,7 @@ use crate::routing::{apply_lee_path, RoutingOptimizations, Belt, insert_undergro
 // Trivial implementation: L+R construction
 
 #[throws(())]
-pub fn mylee(pcb: &mut Pcb, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
+pub fn mylee(pcb: &mut impl Pcb, from: (i32, i32), to: (i32, i32), opts: RoutingOptimizations) {
     let from = Point::new(from.0, from.1);
     let to = Point::new(to.0, to.1);
 
@@ -101,7 +101,7 @@ impl Visited {
 }
 
 fn mylee_internal(
-    pcb: &Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
+    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: RoutingOptimizations
 ) -> Option<Vec<Belt>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in

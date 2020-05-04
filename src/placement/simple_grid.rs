@@ -4,7 +4,7 @@ use crate::pcb::{Pcb, Point};
 use crate::recipe::Category;
 
 pub fn gridrender_subtree(
-    subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut Pcb,
+    subtree: &ProductionGraph, grid_i: &mut i32, pcb: &mut impl Pcb,
     needed_wires: &mut Vec<((i32, i32), (i32, i32))>, gridsize: i32,
 ) -> Option<(Vec<(i32, i32)>, (i32, i32))> {
     if subtree.building == Some(Category::Assembler) || subtree.building == Some(Category::Furnace) {

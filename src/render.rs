@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::iter::{self, FromIterator};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -6,12 +8,12 @@ use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point};
 use crate::routing::Belt;
 
 #[must_use]
-pub fn ascii(pcb: &Pcb) -> String {
+pub fn ascii(pcb: &impl Pcb) -> String {
     AsciiCanvas::build(pcb.entities()).render()
 }
 
 #[must_use]
-pub fn ascii_wire(pcb: &Pcb, from: Point,  wire: impl IntoIterator<Item=impl Borrow<Belt>>, bounds: Rect) -> String {
+pub fn ascii_wire(pcb: &impl Pcb, from: Point,  wire: impl IntoIterator<Item=impl Borrow<Belt>>, bounds: Rect) -> String {
     let mut coords = HashMap::new();
     for x in bounds.a.x..bounds.b.x {
         for y in bounds.a.y..bounds.b.y {
@@ -85,7 +87,7 @@ pub fn ascii_routed_wire(rows: &Vec<Vec<bool>>, path: &Vec<(i32, i32)>) -> Strin
 }
 
 #[must_use]
-pub fn blueprint(pcb: &Pcb) -> String {
+pub fn blueprint(pcb: &impl Pcb) -> String {
     use factorio_blueprint::{objects::*, BlueprintCodec, Container};
     use std::convert::TryInto;
 

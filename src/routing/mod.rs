@@ -19,7 +19,7 @@ bitflags::bitflags! {
     }
 }
 
-pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
+pub fn route<P: Pcb>(pcb: &mut P, needed_wires: &mut NeededWires, pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>, optimizations: RoutingOptimizations) {
     // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
@@ -59,12 +59,12 @@ pub fn route(pcb: &mut Pcb, needed_wires: &mut NeededWires, pathfinder_fn: fn(&m
     }
 }
 
-fn reduce_gratuitous_undergrounds(pcb: &mut Pcb) {
+fn reduce_gratuitous_undergrounds(pcb: &mut impl Pcb) {
     collapse_underground_oneway(pcb, true);
     collapse_underground_oneway(pcb, false);
 }
-fn collapse_underground_oneway(pcb: &mut Pcb, down: bool) {
-    let mut candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
+fn collapse_underground_oneway(pcb: &mut impl Pcb, down: bool) {
+    let candidates: Vec<_> = pcb.entities().filter_map(|e| match e.function {
         Function::UndergroundBelt(d, mode) if mode == down => Some((e.location, d)),
         _ => None,
     }).collect();
@@ -94,11 +94,11 @@ fn collapse_underground_oneway(pcb: &mut Pcb, down: bool) {
 
 
 #[throws(usize)]
-fn try_wiring(mut pcb: Pcb,
+fn try_wiring<P: Pcb>(mut pcb: P,
     needed_wires: &NeededWires,
-    pathfinder_fn: fn(&mut Pcb, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
+    pathfinder_fn: fn(&mut P, (i32, i32), (i32, i32), RoutingOptimizations) -> Result<(), ()>,
     opts: RoutingOptimizations,
-) -> Pcb {
+) -> P {
     for (i, &(from, to)) in needed_wires.iter().enumerate() {
         // render_blueprint_ascii(&pcb);
         #[cfg(feature = "render_wiring_steps")]
@@ -165,7 +165,7 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<Bel
 }
 
 
-fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut Pcb, from: Point, path: I) where I::IntoIter: Clone {
+fn apply_lee_path<I: IntoIterator<Item = Belt>>(pcb: &mut impl Pcb, from: Point, path: I) where I::IntoIter: Clone {
     let mut cursor = from;
     let path = path.into_iter();
     // println!("{}", render::ascii_wire(pcb, from, path.clone(), pcb.grid_capacity()));
