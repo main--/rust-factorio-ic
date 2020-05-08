@@ -37,6 +37,7 @@ mod test {
     use super::routing::{self, MyleeOptions};
 
 
+    #[cfg(feature = "leemaze_lib")]
     fn run_leemaze<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::lee_pathfinder(pcb, f, t)); }
     fn run_mylee_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::empty())); }
     fn run_mylee_bad_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::PREFER_SAME_DIRECTION)); }
@@ -48,11 +49,11 @@ mod test {
     #[test] fn automation_0_75_hash() { run_good::<HashPcb>("automation-science-pack", 0.75) }
     #[test] fn automation_5_00_grid() { run_good::<GridPcb>("automation-science-pack", 5.00) }
     #[test] fn automation_5_00_hash() { run_good::<HashPcb>("automation-science-pack", 5.00) }
-    #[test] fn automation_0_75_leegacy() { run_leemaze::<GridPcb>("automation-science-pack", 0.75) }
+    #[test] #[cfg(feature = "leemaze_lib")] fn automation_0_75_leegacy() { run_leemaze::<GridPcb>("automation-science-pack", 0.75) }
 
     #[test] fn logistic_0_75_grid() { run_good::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_hash() { run_good::<HashPcb>("logistic-science-pack", 0.75) }
-    #[test] fn logistic_0_75_leegacy() { run_leemaze::<GridPcb>("logistic-science-pack", 0.75) }
+    #[test] #[cfg(feature = "leemaze_lib")] fn logistic_0_75_leegacy() { run_leemaze::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_bad() { run_mylee_bad::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_bad_preferdir() { run_mylee_bad_preferdir::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_underground_bad() { run_mylee_underground_bad::<GridPcb>("logistic-science-pack", 0.75) }

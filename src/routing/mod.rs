@@ -3,11 +3,14 @@ use fehler::throws;
 use crate::render;
 use crate::pcb::{Pcb, NeededWires, Entity, Function, Point, Direction};
 
+#[cfg(feature = "leemaze_lib")]
 mod leemaze_lib;
-mod mylee;
-
+#[cfg(feature = "leemaze_lib")]
 pub use leemaze_lib::lee_pathfinder;
+
+mod mylee;
 pub use mylee::{mylee as mylee, Options as MyleeOptions};
+
 use std::convert::TryInto;
 use rand::prelude::*;
 

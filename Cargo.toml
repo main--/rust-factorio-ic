@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 factorio-blueprint = { git = "https://github.com/coriolinus/factorio-blueprint", rev = "0809254a78b1165a2d7e014db9e377bfe55b8ecc" }
 rlua = "0.17"
-leemaze = "0.1.11"
+leemaze = { version = "0.1.11", optional = true }
 nalgebra = "0.21"
 fehler = "1.0"
 ndarray = "0.13"
@@ -20,6 +20,8 @@ fnv = "1.0"
 
 [features]
 render_wiring_steps = []
+leemaze_lib = ["leemaze"]
+default = ["leemaze_lib"]
 
 [profile.release]
 debug = true
