@@ -54,6 +54,7 @@ pub enum Function {
     Inserter { orientation: Direction, long_handed: bool },
     Belt(Direction),
     UndergroundBelt(Direction, bool),
+    ElectricPole,
 }
 #[derive(Debug, Clone)]
 pub struct Entity {
@@ -63,7 +64,7 @@ pub struct Entity {
 impl Entity {
     pub fn size_x(&self) -> i32 {
         match self.function {
-            Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } => 1,
+            Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } | Function::ElectricPole => 1,
             Function::Assembler { .. } | Function::Furnace => 3,
         }
     }

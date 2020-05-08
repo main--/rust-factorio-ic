@@ -145,6 +145,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                             Some(if down { EntityType::Input } else { EntityType::Output });
                         "underground-belt"
                     },
+                    Function::ElectricPole => "medium-electric-pole",
                 };
 
                 Entity {
@@ -214,7 +215,7 @@ impl AsciiCanvas {
         };
 
         for e in entities {
-            match e.function {
+            let symbol = match e.function {
                 Function::Assembler { ref recipe } => {
                     canvas.set(e.location.x + 0, e.location.y + 0, '┌');
                     canvas.set(e.location.x + 1, e.location.y + 0, '─');
@@ -225,6 +226,7 @@ impl AsciiCanvas {
                     canvas.set(e.location.x + 0, e.location.y + 2, '└');
                     canvas.set(e.location.x + 1, e.location.y + 2, '─');
                     canvas.set(e.location.x + 2, e.location.y + 2, '┘');
+                    continue;
                 },
                 Function::Furnace => {
                     canvas.set(e.location.x + 0, e.location.y + 0, '┌');
@@ -236,9 +238,10 @@ impl AsciiCanvas {
                     canvas.set(e.location.x + 0, e.location.y + 2, '└');
                     canvas.set(e.location.x + 1, e.location.y + 2, '─');
                     canvas.set(e.location.x + 2, e.location.y + 2, '┘');
+                    continue;
                 }
                 Function::Inserter { orientation: d, long_handed } => {
-                    let symbol = if long_handed {
+                    if long_handed {
                         match d {
                             Direction::Up => '↟',
                             Direction::Down => '↡',
@@ -252,20 +255,18 @@ impl AsciiCanvas {
                             Direction::Left => '←',
                             Direction::Right => '→',
                         }
-                    };
-                    canvas.set(e.location.x, e.location.y, symbol);
+                    }
                 },
                 Function::Belt(d) => {
-                    let symbol = match d {
+                    match d {
                         Direction::Up => '⍐',
                         Direction::Down => '⍗',
                         Direction::Left => '⍇',
                         Direction::Right => '⍈',
-                    };
-                    canvas.set(e.location.x, e.location.y, symbol);
+                    }
                 },
                 Function::UndergroundBelt(d, down) => {
-                    let symbol = if down {
+                    if down {
                         match d {
                             Direction::Up => '⍓',
                             Direction::Down => '⍌',
@@ -279,10 +280,11 @@ impl AsciiCanvas {
                             Direction::Left => '⍄',
                             Direction::Right => '⍃',
                         }
-                    };
-                    canvas.set(e.location.x, e.location.y, symbol);
+                    }
                 },
-            }
+                Function::ElectricPole => '⚡',
+            };
+            canvas.set(e.location.x, e.location.y, symbol);
         }
 
         canvas

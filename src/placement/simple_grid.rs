@@ -86,7 +86,7 @@ fn gridrender_subtree(
             let grid_y = i / gridsize;
 
             let cell_size_x = 15;
-            let cell_size_y = 10;
+            let cell_size_y = 9;
 
             let start = Point::new(cell_size_x * grid_x, cell_size_y * grid_y);
 
@@ -123,7 +123,13 @@ fn gridrender_subtree(
                         long_handed: false,
                     },
                 },
+                Entity { location: start + Vector::new(3, 3), function: Function::ElectricPole },
             ]);
+
+            if (grid_y == 0) && (grid_x != (gridsize - 1)) {
+                pcb.add(Entity { location: start + Vector::new(10, 1), function: Function::ElectricPole });
+            }
+
             if let Some(prev) = prev {
                 needed_wires.push((prev + Vector::new(0, 2), start + Vector::new(0, 0)));
                 needed_wires.push((start + Vector::new(6, 0), prev + Vector::new(6, 2)));
