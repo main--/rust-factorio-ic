@@ -1,4 +1,5 @@
 mod simple_grid;
+mod bus;
 
 use crate::kirkmcdonald::ProductionGraph;
 use crate::pcb::{Pcb, NeededWires};
@@ -9,4 +10,5 @@ pub trait Placer {
 }
 
 pub use simple_grid::SimpleGridPlacer;
+pub use bus::BusPlacer;
 

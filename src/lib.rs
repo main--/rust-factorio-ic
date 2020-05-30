@@ -1,7 +1,7 @@
 use std::env;
 
 use crate::pcb::{Pcb, Entity, Function, Direction, Point};
-use crate::placement::{Placer, SimpleGridPlacer};
+use crate::placement::{Placer, SimpleGridPlacer, BusPlacer};
 
 mod recipe;
 mod kirkmcdonald;
@@ -21,7 +21,7 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, Point,
     println!("{:#?}", tree);
 
     let mut pcb = P::default();
-    let needed_wires = SimpleGridPlacer::place(&mut pcb, &tree);
+    let needed_wires = BusPlacer::place(&mut pcb, &tree);
 
     println!("rendering {} wires", needed_wires.len());
 

@@ -145,6 +145,14 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                             Some(if down { EntityType::Input } else { EntityType::Output });
                         "underground-belt"
                     },
+                    Function::Splitter(d) => {
+                        direction = Some(d);
+                        match d {
+                            Direction::Up | Direction::Down => position.x += 0.5,
+                            Direction::Left | Direction::Right => position.y += 0.5,
+                        }
+                        "splitter"
+                    }
                     Function::ElectricPole => "medium-electric-pole",
                 };
 
@@ -282,6 +290,13 @@ impl AsciiCanvas {
                         }
                     }
                 },
+                Function::Splitter(d) => {
+                    match d {
+                        Direction::Up | Direction::Down => canvas.set(e.location.x + 1, e.location.y, 'X'),
+                        Direction::Left | Direction::Right => canvas.set(e.location.x, e.location.y + 1, 'X'),
+                    }
+                    'X'
+                }
                 Function::ElectricPole => '⚡',
             };
             canvas.set(e.location.x, e.location.y, symbol);

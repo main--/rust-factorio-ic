@@ -54,6 +54,7 @@ pub enum Function {
     Inserter { orientation: Direction, long_handed: bool },
     Belt(Direction),
     UndergroundBelt(Direction, bool),
+    Splitter(Direction),
     ElectricPole,
 }
 #[derive(Debug, Clone)]
@@ -66,11 +67,19 @@ impl Entity {
         match self.function {
             Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } | Function::ElectricPole => 1,
             Function::Assembler { .. } | Function::Furnace => 3,
+
+            Function::Splitter(Direction::Down) | Function::Splitter(Direction::Up) => 2,
+            Function::Splitter(Direction::Left) | Function::Splitter(Direction::Right) => 1,
         }
     }
 
     pub fn size_y(&self) -> i32 {
-        self.size_x() // currently everything is quadratic
+        match self.function {
+            Function::Splitter(Direction::Down) | Function::Splitter(Direction::Up) => 1,
+            Function::Splitter(Direction::Left) | Function::Splitter(Direction::Right) => 2,
+
+            _ => self.size_x(), // others are quadratic
+        }
     }
 
     pub fn size(&self) -> Vector {
