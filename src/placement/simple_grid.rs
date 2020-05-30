@@ -4,11 +4,17 @@ use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
 use crate::pcb::{Pcb, Point, Vector, NeededWires};
 use crate::recipe::Category;
+use super::Placer;
 
 use std::iter;
 
+pub struct SimpleGridPlacer;
 
-pub fn simple_grid(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
+impl Placer for SimpleGridPlacer {
+    fn place(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires { simple_grid(pcb, tree) }
+}
+
+fn simple_grid(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
     let needed_assemblers = needed_cells(&tree).count();
 
     let gridsize = (needed_assemblers as f64).sqrt().ceil() as i32;
