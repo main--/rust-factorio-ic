@@ -124,7 +124,8 @@ impl Placer for BusPlacer {
                     Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: false } },
                     Entity { location: Point::new(6, 1) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: false } },
                     Entity { location: Point::new(3, 0) + tile_start, function: function_map[recipe].clone() },
-                    Entity { location: Point::new(4, 3) + tile_start, function: Function::ElectricPole },
+                    Entity { location: Point::new(2, 3) + tile_start, function: Function::ElectricPole },
+                    Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },
                 ]);
             }
 
