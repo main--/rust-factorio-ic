@@ -56,6 +56,7 @@ pub enum Function {
     UndergroundBelt(Direction, bool),
     Splitter(Direction),
     ElectricPole,
+    InputMarker(String),
 }
 #[derive(Debug, Clone)]
 pub struct Entity {
@@ -70,6 +71,7 @@ impl Entity {
 
             Function::Splitter(Direction::Down) | Function::Splitter(Direction::Up) => 2,
             Function::Splitter(Direction::Left) | Function::Splitter(Direction::Right) => 1,
+            Function::InputMarker(_) => 1,
         }
     }
 

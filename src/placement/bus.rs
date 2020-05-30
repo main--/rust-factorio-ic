@@ -74,7 +74,7 @@ impl Placer for BusPlacer {
                 pcb.add(Entity { location: Point::new(total_instances_needed-2, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
             }
             pcb.add(Entity { location: Point::new(0, -total_instances_needed) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input.to_owned()) });
             pcb.add(Entity { location: Point::new(0, -total_instances_needed - 2) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
             
             available_outputs.insert(input, (0..total_instances_needed).map(|i| Point::new(i, -1) + Vector::new(input_xoffset, gap_upper)).collect());

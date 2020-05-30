@@ -112,6 +112,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                     x: (e.location.x as f64).try_into().unwrap(),
                     y: (e.location.y as f64).try_into().unwrap(),
                 };
+                let mut filters = None;
                 let name = match e.function {
                     Function::Assembler { recipe: ref r } => {
                         recipe = Some(r.clone());
@@ -154,6 +155,10 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                         "splitter"
                     }
                     Function::ElectricPole => "medium-electric-pole",
+                    Function::InputMarker(ref i) => {
+                        filters = Some(vec![ItemFilter { name: i.clone(), index: OneBasedIndex::new(1).unwrap() }]);
+                        "filter-inserter"
+                    }
                 };
 
                 Entity {
@@ -178,7 +183,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                     input_priority: None,
                     output_priority: None,
                     filter: None,
-                    filters: None,
+                    filters,
                     filter_mode: None,
                     override_stack_size: None,
                     drop_position: None,
@@ -298,6 +303,8 @@ impl AsciiCanvas {
                     'X'
                 }
                 Function::ElectricPole => '⚡',
+
+                Function::InputMarker(ref i) => i.chars().next().unwrap(),
             };
             canvas.set(e.location.x, e.location.y, symbol);
         }
