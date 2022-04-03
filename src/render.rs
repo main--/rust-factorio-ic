@@ -116,6 +116,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                 let name = match e.function {
                     Function::Assembler { recipe: ref r } => {
                         recipe = Some(r.clone());
+                        direction = Some(Direction::Right);
                         position.x += 1.;
                         position.y += 1.;
                         "assembling-machine-2"

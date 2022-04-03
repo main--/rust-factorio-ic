@@ -105,7 +105,11 @@ impl Placer for BusPlacer {
                 println!("[{}] in {} cost={}", recipe, incoming, graph[(incoming, recipe)]);
             }
 
-            let num_distinct_inputs = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).count();
+            let belt_inputs: Vec<_> = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() == WireKind::Belt).collect();
+            let pipe_input = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() == WireKind::Pipe).next();
+            let ox = pipe_input.is_some() as i32;
+
+            let num_distinct_inputs = belt_inputs.len();
 
             let col_start = col_vec * (col as i32);
             let howmany_total: f64 = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing).map(|x| graph[(recipe, x)]).sum();
@@ -127,17 +131,27 @@ impl Placer for BusPlacer {
                     Entity { location: Point::new(1, 1) + tile_start, function: Function::Belt(Direction::Down) },
                     Entity { location: Point::new(1, 2) + tile_start, function: Function::Belt(Direction::Down) },
                     Entity { location: Point::new(1, 3) + tile_start, function: Function::Belt(Direction::Down) },
-                    Entity { location: Point::new(7, 0) + tile_start, function: Function::Belt(Direction::Up) },
-                    Entity { location: Point::new(7, 1) + tile_start, function: Function::Belt(Direction::Up) },
-                    Entity { location: Point::new(7, 2) + tile_start, function: Function::Belt(Direction::Up) },
-                    Entity { location: Point::new(7, 3) + tile_start, function: Function::Belt(Direction::Up) },
+                    Entity { location: Point::new(7 + ox, 0) + tile_start, function: Function::Belt(Direction::Up) },
+                    Entity { location: Point::new(7 + ox, 1) + tile_start, function: Function::Belt(Direction::Up) },
+                    Entity { location: Point::new(7 + ox, 2) + tile_start, function: Function::Belt(Direction::Up) },
+                    Entity { location: Point::new(7 + ox, 3) + tile_start, function: Function::Belt(Direction::Up) },
 
                     Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: false } },
-                    Entity { location: Point::new(6, 1) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: false } },
+                    Entity { location: Point::new(6, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: pipe_input.is_some() } },
                     Entity { location: Point::new(3, 0) + tile_start, function: function_map[recipe].clone() },
                     Entity { location: Point::new(2, 3) + tile_start, function: Function::ElectricPole },
                     Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },
                 ]);
+
+                if pipe_input.is_some() {
+                    pcb.add_all(&[
+                        Entity { location: Point::new(7, 0) + tile_start, function: Function::Pipe },
+                        Entity { location: Point::new(7, 1) + tile_start, function: Function::Pipe },
+                        Entity { location: Point::new(6, 1) + tile_start, function: Function::Pipe },
+                        Entity { location: Point::new(7, 2) + tile_start, function: Function::Pipe },
+                        Entity { location: Point::new(7, 3) + tile_start, function: Function::Pipe },
+                    ]);
+                }
             }
 
             let input_points = if num_distinct_inputs > 1 {
@@ -160,7 +174,7 @@ impl Placer for BusPlacer {
                 vec![Point::new(1, 0)]
             };
 
-            for (input_name, input_point) in graph.neighbors_directed(recipe, petgraph::Direction::Incoming).zip(input_points) {
+            for (input_name, input_point) in belt_inputs.into_iter().zip(input_points) {
                 if let Some(outlist) = available_outputs.get_mut(input_name) {
                     needed_wires.push(NeededWire {
                         from: outlist.pop().unwrap(),
@@ -169,14 +183,23 @@ impl Placer for BusPlacer {
                     });
                 }
             }
+            if let Some(pipe_input) = pipe_input {
+                if let Some(outlist) = available_outputs.get_mut(pipe_input) {
+                    needed_wires.push(NeededWire {
+                        from: outlist.pop().unwrap(),
+                        to: Point::new(7, 0) + col_start,
+                        wire_kind: WireKind::Pipe,
+                    });
+                }
+            }
 
             pcb.replace(Entity { location: Point::new(1, 3) + col_start + tile_vec * (howmany_total - 1), function: Function::Belt(Direction::Up) });
-            pcb.replace(Entity { location: Point::new(7, 0) + col_start, function: Function::Belt(Direction::Right) });
-            pcb.add(Entity { location: Point::new(8, 0) + col_start, function: Function::Belt(Direction::Down) });
+            pcb.replace(Entity { location: Point::new(7 + ox, 0) + col_start, function: Function::Belt(Direction::Right) });
+            pcb.add(Entity { location: Point::new(8 + ox, 0) + col_start, function: Function::Belt(Direction::Down) });
             let num_extra_output_paths = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing).count() as i32 - 1;
             let mut output_nodes = Vec::new();
             for i in 0..num_extra_output_paths {
-                let tile_start = col_start + Vector::new(8, i * 2 + 1);
+                let tile_start = col_start + Vector::new(8 + ox, i * 2 + 1);
                 pcb.add_all(&[
                     Entity { location: Point::new(0, 0) + tile_start, function: Function::Splitter(Direction::Down) },
                     Entity { location: Point::new(0, 1) + tile_start, function: Function::Belt(Direction::Down) },
@@ -185,10 +208,10 @@ impl Placer for BusPlacer {
                 output_nodes.push(Point::new(1, 1) + tile_start);
             }
             pcb.add_all(&[
-                Entity { location: Point::new(8, num_extra_output_paths * 2 + 1) + col_start, function: Function::Belt(Direction::Right) },
-                Entity { location: Point::new(9, num_extra_output_paths * 2 + 1) + col_start, function: Function::Belt(Direction::Right) },
+                Entity { location: Point::new(8 + ox, num_extra_output_paths * 2 + 1) + col_start, function: Function::Belt(Direction::Right) },
+                Entity { location: Point::new(9 + ox, num_extra_output_paths * 2 + 1) + col_start, function: Function::Belt(Direction::Right) },
             ]);
-            output_nodes.push(Point::new(9, num_extra_output_paths * 2 + 1) + col_start);
+            output_nodes.push(Point::new(9 + ox, num_extra_output_paths * 2 + 1) + col_start);
 
             output_nodes.reverse();
             available_outputs.insert(recipe, output_nodes);
