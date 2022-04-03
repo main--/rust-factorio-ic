@@ -4,9 +4,9 @@ use fehler::throws;
 use either::Either;
 use fnv::FnvHashSet;
 
-use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function};
+use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function, NeededWire};
 use crate::render;
-use crate::routing::{apply_lee_path, Belt, insert_underground_belts};
+use crate::routing::{apply_lee_path, LogisticRoute, insert_underground_belts};
 
 bitflags::bitflags! {
     pub struct Options: u64 {
@@ -18,15 +18,15 @@ bitflags::bitflags! {
 
 
 #[throws(())]
-pub fn mylee(pcb: &mut impl Pcb, from: Point, to: Point, opts: Options) {
+pub fn mylee(pcb: &mut impl Pcb, &NeededWire { from, to, wire_kind }: &NeededWire, opts: Options) {
     let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts).ok_or(())?;
 
-    apply_lee_path(pcb, from, path);
+    apply_lee_path(pcb, from, path, wire_kind);
 }
 
 struct Mazewalker {
     pos: Point,
-    history: Vec<Belt>,
+    history: Vec<LogisticRoute>,
 }
 impl Mazewalker {
     fn conflicts_with_own_path(&self, test: Point) -> bool {
@@ -34,13 +34,13 @@ impl Mazewalker {
         let mut pos = self.pos;
         for &belt in self.history.iter().rev() {
             match belt {
-                Belt::Normal(dir) => {
+                LogisticRoute::Normal(dir) => {
                     pos -= dir.to_vector();
                     if pos == test {
                         return true;
                     }
                 }
-                Belt::Underground { dir, gap } => {
+                LogisticRoute::Underground { dir, gap } => {
                     // underground end tile
                     pos -= dir.to_vector();
                     if pos == test {
@@ -99,7 +99,7 @@ impl Visited {
 
 fn mylee_internal(
     pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options
-) -> Option<Vec<Belt>> {
+) -> Option<Vec<LogisticRoute>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
     // and the connection loop
@@ -118,12 +118,12 @@ fn mylee_internal(
            // println!("{} vs {}", walker.pos, to);
 
             let base_moveset = match walker.history.last() {
-                Some(Belt::Underground { dir, .. }) => Either::Left(ALL_DIRECTIONS.iter().filter(move |d| **d != dir.opposite_direction())),
-                Some(Belt::Normal(_)) | None => Either::Right(moveset.iter()),
+                Some(LogisticRoute::Underground { dir, .. }) => Either::Left(ALL_DIRECTIONS.iter().filter(move |d| **d != dir.opposite_direction())),
+                Some(LogisticRoute::Normal(_)) | None => Either::Right(moveset.iter()),
             };
 
             let prefer_direction =  if opts.contains(Options::PREFER_SAME_DIRECTION) {
-                walker.history.last().map(Belt::direction)
+                walker.history.last().map(LogisticRoute::direction)
             } else {
                 None
             };
@@ -132,10 +132,10 @@ fn mylee_internal(
                 let goto = walker.pos + dir.to_vector();
                 if goto == to {
                     let mut path = walker.history;
-                    path.push(Belt::Normal(dir));
+                    path.push(LogisticRoute::Normal(dir));
                     if !opts.contains(Options::USE_UNDERGROUND_BELTS) {
                         path = insert_underground_belts(path.into_iter().map(|b| match b {
-                            Belt::Normal(d) => d,
+                            LogisticRoute::Normal(d) => d,
                             _ => unreachable!(),
                         }));
                     }
@@ -151,7 +151,7 @@ fn mylee_internal(
 
                 // normal belt in that direction
                 let new_history =
-                    walker.history.iter().copied().chain(iter::once(Belt::Normal(dir))).collect();
+                    walker.history.iter().copied().chain(iter::once(LogisticRoute::Normal(dir))).collect();
                 walkers.push(Mazewalker { pos: goto, history: new_history });
             }
 
@@ -186,9 +186,9 @@ fn mylee_internal(
                     visited.insert(underground_end, dir);
                     visited.insert(goto, dir);
                     let mut new_history = walker.history.clone();
-                    new_history.push(Belt::Underground { dir, gap });
+                    new_history.push(LogisticRoute::Underground { dir, gap });
                     if goto == to {
-                        new_history.push(Belt::Normal(dir));
+                        new_history.push(LogisticRoute::Normal(dir));
                         return Some(new_history);
                     }
                     walkers.push(Mazewalker { pos: goto, history: new_history });

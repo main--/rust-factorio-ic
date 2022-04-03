@@ -2,7 +2,7 @@
 
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
-use crate::pcb::{Pcb, Point, Vector, NeededWires};
+use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt, WireKind, NeededWire};
 use crate::recipe::Category;
 use crate::render;
 use super::Placer;
@@ -15,6 +15,7 @@ pub struct BusPlacer;
 
 static OUTPUT: &'static str = "<output>";
 
+
 impl Placer for BusPlacer {
     fn place(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
         let mut needed_wires = NeededWires::new();
@@ -22,24 +23,25 @@ impl Placer for BusPlacer {
         // 1. calculate how much we need (i.e. flatten the production graph)
         let mut graph = DiGraphMap::<&str, f64>::new();
         let mut function_map = FnvHashMap::default();
+        let mut kind_map = FnvHashMap::default();
+
         let mut todo_stack = vec![tree];
         while let Some(item) = todo_stack.pop() {
+            kind_map.insert(item.output.as_str(), item.output_kind);
+
             if item.building != Some(Category::Assembler) && item.building != Some(Category::Furnace) {
                 continue;
             }
-        
+
             todo_stack.extend(&item.inputs);
-            
+
             for input in &item.inputs {
-                match graph.add_edge(&input.output, &item.output, input.how_many) {
-                    None => (), // all good
-                    Some(old) => {
-                        // fixup required
-                        *graph.edge_weight_mut(&input.output, &item.output).unwrap() += old;
-                    }
+                match graph.edge_weight_mut(&input.output, &item.output) {
+                    Some(existing) => *existing += input.how_many,
+                    None => { graph.add_edge(&input.output, &item.output, input.how_many); }
                 }
             }
-            
+
             let function = match item.building {
                 Some(Category::Assembler) => Function::Assembler { recipe: item.output.clone() },
                 Some(Category::Furnace) => Function::Furnace,
@@ -48,13 +50,13 @@ impl Placer for BusPlacer {
             function_map.insert(&item.output as &str, function);
         }
         println!("{:#?}", graph);
-        
+
         let mut order = petgraph::algo::toposort(&graph, None).expect("there are no cyclic recipes"); // unless you're doing uranium, which is currently excluded
         println!("{:#?}", order);
 
         graph.add_edge(&tree.output, OUTPUT, tree.how_many);
 
-        let mut global_inputs = Vec::new();        
+        let mut global_inputs = Vec::new();
         for i in (0..order.len()).rev() {
             if graph.neighbors_directed(order[i], petgraph::Direction::Incoming).count() == 0 {
                 global_inputs.push(order.remove(i));
@@ -66,19 +68,28 @@ impl Placer for BusPlacer {
         let gap_upper = -10;
         let mut input_xoffset = 5;
         for input in global_inputs {
+            let kind = *kind_map.get(input).unwrap();
+
             let total_instances_needed = graph.neighbors_directed(input, petgraph::Direction::Outgoing).count() as i32;
             for i in 1..total_instances_needed { // FIXME: this loop is untested, not sure how to trigger it
                 for j in 0..(total_instances_needed-2) {
                     pcb.add(Entity { location: Point::new(j, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
                 }
-                pcb.add(Entity { location: Point::new(total_instances_needed-2, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
+                pcb.add(Entity { location: Point::new(total_instances_needed-2, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
             }
-            pcb.add(Entity { location: Point::new(0, -total_instances_needed) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input.to_owned()) });
+            if total_instances_needed == 1 {
+                pcb.add(Entity { location: Point::new(0, -total_instances_needed) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+            }
+
+            let input_name = match kind {
+                WireKind::Belt => input.to_owned(),
+                WireKind::Pipe => format!("{}-barrel", input),
+            };
+            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input_name) });
             pcb.add(Entity { location: Point::new(0, -total_instances_needed - 2) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-            
+
             available_outputs.insert(input, (0..total_instances_needed).map(|i| Point::new(i, -1) + Vector::new(input_xoffset, gap_upper)).collect());
-            
+
             input_xoffset += total_instances_needed;
         }
         let global_output_point = Point::new(0, -1) + Vector::new(input_xoffset, gap_upper);
@@ -151,7 +162,11 @@ impl Placer for BusPlacer {
 
             for (input_name, input_point) in graph.neighbors_directed(recipe, petgraph::Direction::Incoming).zip(input_points) {
                 if let Some(outlist) = available_outputs.get_mut(input_name) {
-                    needed_wires.push((outlist.pop().unwrap(), input_point + col_start));
+                    needed_wires.push(NeededWire {
+                        from: outlist.pop().unwrap(),
+                        to: input_point + col_start,
+                        wire_kind: *kind_map.get(input_name).unwrap(),
+                    });
                 }
             }
 
@@ -182,9 +197,9 @@ impl Placer for BusPlacer {
                 println!("[{}] out {} cost={}", recipe, outgoing, graph[(recipe, outgoing)]);
             }
         }
-        
-        needed_wires.push((available_outputs.get_mut(&tree.output as &str).unwrap().pop().unwrap(), global_output_point));
-        
+
+        needed_wires.push(need_belt(available_outputs.get_mut(&tree.output as &str).unwrap().pop().unwrap(), global_output_point));
+
         println!("{}", render::ascii(pcb));
 
         needed_wires

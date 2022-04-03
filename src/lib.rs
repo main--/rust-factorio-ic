@@ -1,5 +1,7 @@
 use std::env;
 
+use pcb::NeededWire;
+
 use crate::pcb::{Pcb, Entity, Function, Direction, Point};
 use crate::placement::{Placer, SimpleGridPlacer, BusPlacer};
 
@@ -10,14 +12,14 @@ mod placement;
 pub mod routing;
 mod render;
 
-pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, Point, Point) -> Result<(), ()>) {
+pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &NeededWire) -> Result<(), ()>) {
     let path = env::args().nth(1).unwrap_or(
         "recipe".to_string()
     );
     let recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
 
-    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, amount);
+    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, amount, pcb::WireKind::Belt);
     println!("{:#?}", tree);
 
     let mut pcb = P::default();
@@ -25,7 +27,7 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, Point,
 
     println!("rendering {} wires", needed_wires.len());
 
-    //routing::route(&mut pcb, needed_wires, |pcb, f, t| routing::mylee(pcb, f, t, MyleeOptimizations::empty()));
+    //routing::route(&mut pcb, needed_wires, |pcb, w| routing::mylee(pcb, w, MyleeOptimizations::empty()));
     routing::route(&mut pcb, needed_wires, pathfinder);
 
     println!("{}", render::blueprint(&pcb));
@@ -39,12 +41,12 @@ mod test {
 
 
     #[cfg(feature = "leemaze_lib")]
-    fn run_leemaze<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::lee_pathfinder(pcb, f, t)); }
-    fn run_mylee_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::empty())); }
-    fn run_mylee_bad_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::PREFER_SAME_DIRECTION)); }
-    fn run_mylee_underground_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS)); }
-    fn run_good<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS)); }
-    fn run_mylee_underground_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, f, t| routing::mylee(pcb, f, t, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS | MyleeOptions::PREFER_SAME_DIRECTION)); }
+    fn run_leemaze<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::lee_pathfinder(pcb, w)); }
+    fn run_mylee_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::mylee(pcb, w, MyleeOptions::empty())); }
+    fn run_mylee_bad_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::mylee(pcb, w, MyleeOptions::PREFER_SAME_DIRECTION)); }
+    fn run_mylee_underground_bad<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::mylee(pcb, w, MyleeOptions::USE_UNDERGROUND_BELTS)); }
+    fn run_good<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::mylee(pcb, w, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS)); }
+    fn run_mylee_underground_preferdir<P: Pcb>(recipe: &str, amount: f64) { super::run(recipe, amount, |pcb: &mut P, w| routing::mylee(pcb, w, MyleeOptions::USE_UNDERGROUND_BELTS | MyleeOptions::VISITED_WITH_DIRECTIONS | MyleeOptions::PREFER_SAME_DIRECTION)); }
 
     #[test] fn automation_0_75_grid() { run_good::<GridPcb>("automation-science-pack", 0.75) }
     #[test] fn automation_0_75_hash() { run_good::<HashPcb>("automation-science-pack", 0.75) }

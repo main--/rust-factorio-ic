@@ -5,7 +5,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point};
-use crate::routing::Belt;
+use crate::routing::LogisticRoute;
 
 #[must_use]
 pub fn ascii(pcb: &impl Pcb) -> String {
@@ -13,7 +13,7 @@ pub fn ascii(pcb: &impl Pcb) -> String {
 }
 
 #[must_use]
-pub fn ascii_wire(pcb: &impl Pcb, from: Point,  wire: impl IntoIterator<Item=impl Borrow<Belt>>, bounds: Rect) -> String {
+pub fn ascii_wire(pcb: &impl Pcb, from: Point,  wire: impl IntoIterator<Item=impl Borrow<LogisticRoute>>, bounds: Rect) -> String {
     let mut coords = HashMap::new();
     for x in bounds.a.x..bounds.b.x {
         for y in bounds.a.y..bounds.b.y {
@@ -158,6 +158,11 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                     Function::InputMarker(ref i) => {
                         filters = Some(vec![ItemFilter { name: i.clone(), index: OneBasedIndex::new(1).unwrap() }]);
                         "filter-inserter"
+                    }
+                    Function::Pipe => "pipe",
+                    Function::UndergroundPipe(d) => {
+                        direction = Some(d);
+                        "pipe-to-ground"
                     }
                 };
 
@@ -305,6 +310,9 @@ impl AsciiCanvas {
                 Function::ElectricPole => '⚡',
 
                 Function::InputMarker(ref i) => i.chars().next().unwrap(),
+
+                Function::Pipe => 'p',
+                Function::UndergroundPipe(_) => 'P',
             };
             canvas.set(e.location.x, e.location.y, symbol);
         }

@@ -57,6 +57,9 @@ pub enum Function {
     Splitter(Direction),
     ElectricPole,
     InputMarker(String),
+
+    Pipe,
+    UndergroundPipe(Direction),
 }
 #[derive(Debug, Clone)]
 pub struct Entity {
@@ -66,7 +69,8 @@ pub struct Entity {
 impl Entity {
     pub fn size_x(&self) -> i32 {
         match self.function {
-            Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } | Function::ElectricPole => 1,
+            Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } | Function::ElectricPole
+            | Function::Pipe | Function::UndergroundPipe(_) => 1,
             Function::Assembler { .. } | Function::Furnace => 3,
 
             Function::Splitter(Direction::Down) | Function::Splitter(Direction::Up) => 2,
@@ -119,8 +123,20 @@ impl Rect {
     }
 }
 
-pub type NeededWires = Vec<(Point, Point)>;
-
+pub type NeededWires = Vec<NeededWire>;
+pub struct NeededWire {
+    pub from: Point,
+    pub to: Point,
+    pub wire_kind: WireKind,
+}
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum WireKind {
+    Belt,
+    Pipe,
+}
+pub fn need_belt(from: Point, to: Point) -> NeededWire {
+    NeededWire { from, to, wire_kind: WireKind::Belt }
+}
 
 pub trait Pcb: Default + Clone where for<'a> Self: PcbRef<'a> {
     fn add(&mut self, entity: impl Borrow<Entity>);

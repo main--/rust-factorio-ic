@@ -1,8 +1,10 @@
-use crate::recipe::{Category, Recipe};
+use crate::pcb::WireKind;
+use crate::recipe::{Category, Recipe, Ingredient};
 
 #[derive(Debug)]
 pub struct ProductionGraph {
     pub output: String,
+    pub output_kind: WireKind,
     pub per_second: f64,
 
     pub how_many: f64,
@@ -12,11 +14,23 @@ pub struct ProductionGraph {
     pub inputs: Vec<ProductionGraph>,
 }
 
-pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) -> ProductionGraph {
-    if let Some(recipe) =
-    recipes.iter().filter(|x| (x.results.len() == 1) && (x.results[0].0 == desired)).next()
-    {
-        let results_per_step = recipe.results[0].1 as f64;
+pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, output_kind: WireKind) -> ProductionGraph {
+    if output_kind == WireKind::Pipe {
+        // right now we just blindly assume that we can't produce pipe outputs ever
+        return ProductionGraph {
+            output: desired.to_owned(),
+            output_kind,
+            per_second: desired_per_second,
+
+            how_many: -1.,
+            building: None,
+
+            inputs: vec![],
+        };
+    }
+
+    if let Some(recipe) = recipes.iter().filter(|x| (x.results.len() == 1) && (x.results[0].name == desired)).next() {
+        let results_per_step = recipe.results[0].amount as f64;
         let step_duration = recipe.crafting_time;
         let results_per_second = results_per_step / step_duration;
         let how_many_concurrents = desired_per_second / results_per_second;
@@ -31,13 +45,14 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
         let inputs = recipe
             .ingredients
             .iter()
-            .map(|&(ref d, amt)| {
-                kirkmcdonald(recipes, d, amt as f64 / results_per_step * desired_per_second)
+            .map(|&Ingredient { ref name, amount, kind }| {
+                kirkmcdonald(recipes, name, amount as f64 / results_per_step * desired_per_second, kind)
             })
             .collect();
 
         ProductionGraph {
             output: desired.to_owned(),
+            output_kind,
             per_second: desired_per_second,
 
             how_many,
@@ -48,6 +63,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64) 
     } else {
         ProductionGraph {
             output: desired.to_owned(),
+            output_kind,
             per_second: desired_per_second,
 
             how_many: -1.,

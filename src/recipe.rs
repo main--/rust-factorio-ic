@@ -2,6 +2,8 @@ use std::path::Path;
 
 use rlua::{Lua, Result, Table};
 
+use crate::pcb::WireKind;
+
 #[derive(Debug, Clone)]
 pub struct Recipe {
     pub ingredients: ItemSpec,
@@ -22,8 +24,13 @@ pub enum Category {
     Furnace,
 }
 
-pub type ItemSpec = Vec<(String, u32)>;
-
+pub type ItemSpec = Vec<Ingredient>;
+#[derive(Debug, Clone)]
+pub struct Ingredient {
+    pub name: String,
+    pub amount: u32,
+    pub kind: WireKind,
+}
 
 pub fn extract_recipes(path: impl AsRef<Path>) -> Result<Vec<Recipe>> {
     let lua = Lua::new();
@@ -80,7 +87,7 @@ data = Importer:create()
                 let ingredients = normalize_item_spec(item.get("ingredients")?)?;
                 let crafting_time = item.get("energy_required").unwrap_or(0.5);
                 let results = match item.get("result") {
-                    Ok(r) => vec![(r, item.get("result_count").unwrap_or(1))],
+                    Ok(r) => vec![Ingredient { name: r, amount: item.get("result_count").unwrap_or(1), kind: WireKind::Belt }],
                     _ => normalize_item_spec(item.get("results")?)?,
                 };
 
@@ -119,6 +126,10 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
         let item = item?;
         let name;
         let amount;
+        let kind = match item.get::<_, String>("type") {
+            Ok(s) if s == "fluid" => WireKind::Pipe,
+            _ => WireKind::Belt,
+        };
         if item.contains_key("name")? {
             name = item.get("name")?;
             amount = item.get("amount")?;
@@ -126,7 +137,7 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
             name = item.get(1)?;
             amount = item.get(2)?;
         }
-        items.push((name, amount));
+        items.push(Ingredient { name, amount, kind });
     }
     Ok(items)
 }

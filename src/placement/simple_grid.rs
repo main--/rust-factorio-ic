@@ -2,7 +2,7 @@
 
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
-use crate::pcb::{Pcb, Point, Vector, NeededWires};
+use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt};
 use crate::recipe::Category;
 use super::Placer;
 
@@ -39,9 +39,9 @@ fn simple_grid(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
             function: Function::Belt(Direction::Down),
         });
     }
-    needed_wires.push((lout, Point::new(0, -3 - gap_upper)));
+    needed_wires.push(need_belt(lout, Point::new(0, -3 - gap_upper)));
     for (i, lin) in lins.into_iter().enumerate().rev() {
-        needed_wires.push((Point::new(i as i32 + 1, -3 - gap_upper), lin));
+        needed_wires.push(need_belt(Point::new(i as i32 + 1, -3 - gap_upper), lin));
     }
     needed_wires
 }
@@ -137,8 +137,8 @@ fn gridrender_subtree(
             }
 
             if let Some(prev) = prev {
-                needed_wires.push((prev + Vector::new(0, 2), start + Vector::new(0, 0)));
-                needed_wires.push((start + Vector::new(6, 0), prev + Vector::new(6, 2)));
+                needed_wires.push(need_belt(prev + Vector::new(0, 2), start + Vector::new(0, 0)));
+                needed_wires.push(need_belt(start + Vector::new(6, 0), prev + Vector::new(6, 2)));
             }
 
             if second_input_belt {
@@ -165,7 +165,7 @@ fn gridrender_subtree(
                     },
                 ]);
                 if let Some(prev) = prev {
-                    needed_wires.push((start + Vector::new(7, 0), prev + Vector::new(7, 2)));
+                    needed_wires.push(need_belt(start + Vector::new(7, 0), prev + Vector::new(7, 2)));
                 }
             }
 
@@ -208,7 +208,7 @@ fn gridrender_subtree(
         for (from, to) in our_inputs.into_iter().zip(target_points) {
             match from {
                 None => upper_inputs.push(to),
-                Some(from) => needed_wires.push((from, to)),
+                Some(from) => needed_wires.push(need_belt(from, to)),
             }
         }
 
