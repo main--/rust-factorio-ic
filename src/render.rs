@@ -159,7 +159,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                         filters = Some(vec![ItemFilter { name: i.clone(), index: OneBasedIndex::new(1).unwrap() }]);
                         "filter-inserter"
                     }
-                    Function::Pipe => "pipe",
+                    Function::Pipe(_) => "pipe",
                     Function::UndergroundPipe(d) => {
                         direction = Some(d);
                         "pipe-to-ground"
@@ -311,7 +311,7 @@ impl AsciiCanvas {
 
                 Function::InputMarker(ref i) => i.chars().next().unwrap(),
 
-                Function::Pipe => 'p',
+                Function::Pipe(_) => 'p',
                 Function::UndergroundPipe(_) => 'P',
             };
             canvas.set(e.location.x, e.location.y, symbol);

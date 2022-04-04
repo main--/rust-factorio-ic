@@ -58,7 +58,7 @@ pub enum Function {
     ElectricPole,
     InputMarker(String),
 
-    Pipe,
+    Pipe(String),
     UndergroundPipe(Direction),
 }
 #[derive(Debug, Clone)]
@@ -70,7 +70,7 @@ impl Entity {
     pub fn size_x(&self) -> i32 {
         match self.function {
             Function::Belt(_) | Function::UndergroundBelt(_, _) | Function::Inserter { .. } | Function::ElectricPole
-            | Function::Pipe | Function::UndergroundPipe(_) => 1,
+            | Function::Pipe(_) | Function::UndergroundPipe(_) => 1,
             Function::Assembler { .. } | Function::Furnace => 3,
 
             Function::Splitter(Direction::Down) | Function::Splitter(Direction::Up) => 2,
@@ -129,16 +129,16 @@ pub struct NeededWire {
     pub to: Point,
     pub wire_kind: WireKind,
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WireKind {
     Belt,
-    Pipe,
+    Pipe(String),
 }
 impl WireKind {
     pub fn gap_size(&self) -> usize {
         match self {
             WireKind::Belt => 4,
-            WireKind::Pipe => 9,
+            WireKind::Pipe(_) => 9,
         }
     }
 }

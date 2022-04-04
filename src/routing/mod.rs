@@ -159,7 +159,7 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I, gap_limit:
 }
 
 
-fn apply_lee_path<I: IntoIterator<Item = LogisticRoute>>(pcb: &mut impl Pcb, from: Point, path: I, kind: WireKind) where I::IntoIter: Clone {
+fn apply_lee_path<I: IntoIterator<Item = LogisticRoute>>(pcb: &mut impl Pcb, from: Point, path: I, kind: &WireKind) where I::IntoIter: Clone {
     let mut cursor = from;
     let path = path.into_iter();
     // println!("{}", render::ascii_wire(pcb, from, path.clone(), pcb.entity_rect().pad(1)));
@@ -170,14 +170,14 @@ fn apply_lee_path<I: IntoIterator<Item = LogisticRoute>>(pcb: &mut impl Pcb, fro
             LogisticRoute::Normal(dir) => {
                 let function = match kind {
                     WireKind::Belt => Function::Belt(dir),
-                    WireKind::Pipe => Function::Pipe,
+                    WireKind::Pipe(ref x) => Function::Pipe(x.clone()),
                 };
                 add_beginning(Entity { location: cursor, function });
             },
             LogisticRoute::Underground { dir, .. } => {
                 let (f1, f2) = match kind {
                     WireKind::Belt => (Function::UndergroundBelt(dir, true), Function::UndergroundBelt(dir, false)),
-                    WireKind::Pipe => (Function::UndergroundPipe(dir.opposite_direction()), Function::UndergroundPipe(dir)),
+                    WireKind::Pipe(_) => (Function::UndergroundPipe(dir.opposite_direction()), Function::UndergroundPipe(dir)),
                 };
                 add_beginning(Entity {
                     location: cursor,

@@ -26,7 +26,7 @@ impl Placer for BusPlacer {
 
         let mut todo_stack = vec![tree];
         while let Some(item) = todo_stack.pop() {
-            kind_map.insert(item.output.as_str(), item.output_kind);
+            kind_map.insert(item.output.as_str(), item.output_kind.clone());
 
             if item.building != Some(Category::Assembler) && item.building != Some(Category::Furnace) {
                 continue;
@@ -67,7 +67,7 @@ impl Placer for BusPlacer {
         let gap_upper = -10;
         let mut input_xoffset = 5;
         for input in global_inputs {
-            let kind = *kind_map.get(input).unwrap();
+            let kind = kind_map.get(input).unwrap();
 
             let total_instances_needed = graph.neighbors_directed(input, petgraph::Direction::Outgoing).count() as i32;
             for i in 1..total_instances_needed { // FIXME: this loop is untested, not sure how to trigger it
@@ -82,7 +82,7 @@ impl Placer for BusPlacer {
 
             let input_name = match kind {
                 WireKind::Belt => input.to_owned(),
-                WireKind::Pipe => format!("{}-barrel", input),
+                WireKind::Pipe(_) => format!("{}-barrel", input),
             };
             pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input_name) });
             pcb.add(Entity { location: Point::new(0, -total_instances_needed - 2) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
@@ -105,7 +105,7 @@ impl Placer for BusPlacer {
             }
 
             let belt_inputs: Vec<_> = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() == WireKind::Belt).collect();
-            let pipe_input = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() == WireKind::Pipe).next();
+            let pipe_input = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() != WireKind::Belt).next();
             let ox = pipe_input.is_some() as i32;
 
             let num_distinct_inputs = belt_inputs.len();
@@ -142,13 +142,13 @@ impl Placer for BusPlacer {
                     Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },
                 ]);
 
-                if pipe_input.is_some() {
+                if let Some(pipe_in) = pipe_input {
                     pcb.add_all(&[
-                        Entity { location: Point::new(7, 0) + tile_start, function: Function::Pipe },
-                        Entity { location: Point::new(7, 1) + tile_start, function: Function::Pipe },
-                        Entity { location: Point::new(6, 1) + tile_start, function: Function::Pipe },
-                        Entity { location: Point::new(7, 2) + tile_start, function: Function::Pipe },
-                        Entity { location: Point::new(7, 3) + tile_start, function: Function::Pipe },
+                        Entity { location: Point::new(7, 0) + tile_start, function: Function::Pipe(pipe_in.to_owned()) },
+                        Entity { location: Point::new(7, 1) + tile_start, function: Function::Pipe(pipe_in.to_owned()) },
+                        Entity { location: Point::new(6, 1) + tile_start, function: Function::Pipe(pipe_in.to_owned()) },
+                        Entity { location: Point::new(7, 2) + tile_start, function: Function::Pipe(pipe_in.to_owned()) },
+                        Entity { location: Point::new(7, 3) + tile_start, function: Function::Pipe(pipe_in.to_owned()) },
                     ]);
                 }
             }
@@ -178,7 +178,7 @@ impl Placer for BusPlacer {
                     needed_wires.push(NeededWire {
                         from: outlist.pop().unwrap(),
                         to: input_point + col_start,
-                        wire_kind: *kind_map.get(input_name).unwrap(),
+                        wire_kind: kind_map.get(input_name).unwrap().clone(),
                     });
                 }
             }
@@ -187,7 +187,7 @@ impl Placer for BusPlacer {
                     needed_wires.push(NeededWire {
                         from: outlist.pop().unwrap(),
                         to: Point::new(7, 0) + col_start,
-                        wire_kind: WireKind::Pipe,
+                        wire_kind: WireKind::Pipe(pipe_input.to_owned()),
                     });
                 }
             }

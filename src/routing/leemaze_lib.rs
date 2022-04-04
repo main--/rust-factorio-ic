@@ -5,7 +5,7 @@ use crate::pcb::{Pcb, Direction, Point, ALL_DIRECTIONS, NeededWire};
 use crate::routing::{apply_lee_path, insert_underground_belts};
 
 #[throws(())]
-pub fn lee_pathfinder(pcb: &mut impl Pcb, &NeededWire { from, to, wire_kind }: &NeededWire) {
+pub fn lee_pathfinder(pcb: &mut impl Pcb, &NeededWire { from, to, ref wire_kind }: &NeededWire) {
     let lee_rect = pcb.entity_rect().pad(2);
 
     let mut rows = Vec::new();

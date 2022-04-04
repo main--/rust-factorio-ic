@@ -19,7 +19,7 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &Neede
     let recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
 
-    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, amount, pcb::WireKind::Belt);
+    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, amount, &pcb::WireKind::Belt);
     println!("{:#?}", tree);
 
     let mut pcb = P::default();

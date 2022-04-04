@@ -124,12 +124,8 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
     let mut items = Vec::new();
     for item in table.sequence_values::<Table>() {
         let item = item?;
-        let name;
+        let name: String;
         let amount;
-        let kind = match item.get::<_, String>("type") {
-            Ok(s) if s == "fluid" => WireKind::Pipe,
-            _ => WireKind::Belt,
-        };
         if item.contains_key("name")? {
             name = item.get("name")?;
             amount = item.get("amount")?;
@@ -137,6 +133,10 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
             name = item.get(1)?;
             amount = item.get(2)?;
         }
+        let kind = match item.get::<_, String>("type") {
+            Ok(s) if s == "fluid" => WireKind::Pipe(name.to_owned()),
+            _ => WireKind::Belt,
+        };
         items.push(Ingredient { name, amount, kind });
     }
     Ok(items)

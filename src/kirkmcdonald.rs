@@ -14,12 +14,12 @@ pub struct ProductionGraph {
     pub inputs: Vec<ProductionGraph>,
 }
 
-pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, output_kind: WireKind) -> ProductionGraph {
-    if output_kind == WireKind::Pipe {
+pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, output_kind: &WireKind) -> ProductionGraph {
+    if output_kind != &WireKind::Belt {
         // right now we just blindly assume that we can't produce pipe outputs ever
         return ProductionGraph {
             output: desired.to_owned(),
-            output_kind,
+            output_kind: output_kind.clone(),
             per_second: desired_per_second,
 
             how_many: -1.,
@@ -45,14 +45,14 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
         let inputs = recipe
             .ingredients
             .iter()
-            .map(|&Ingredient { ref name, amount, kind }| {
+            .map(|&Ingredient { ref name, amount, ref kind }| {
                 kirkmcdonald(recipes, name, amount as f64 / results_per_step * desired_per_second, kind)
             })
             .collect();
 
         ProductionGraph {
             output: desired.to_owned(),
-            output_kind,
+            output_kind: output_kind.clone(),
             per_second: desired_per_second,
 
             how_many,
@@ -63,7 +63,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
     } else {
         ProductionGraph {
             output: desired.to_owned(),
-            output_kind,
+            output_kind: output_kind.clone(),
             per_second: desired_per_second,
 
             how_many: -1.,

@@ -17,7 +17,7 @@ bitflags::bitflags! {
 
 
 #[throws(())]
-pub fn mylee(pcb: &mut impl Pcb, &NeededWire { from, to, wire_kind }: &NeededWire, opts: Options) {
+pub fn mylee(pcb: &mut impl Pcb, &NeededWire { from, to, ref wire_kind }: &NeededWire, opts: Options) {
     let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts, wire_kind).ok_or(())?;
 
     apply_lee_path(pcb, from, path, wire_kind);
@@ -97,7 +97,7 @@ impl Visited {
 }
 
 fn mylee_internal(
-    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: WireKind,
+    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: &WireKind,
 ) -> Option<Vec<LogisticRoute>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -146,6 +146,20 @@ fn mylee_internal(
                     continue;
                 }
 
+                // prevent accidental pipe connections
+                if let WireKind::Pipe(kind) = kind {
+                    let adjacents = [Vector::new(1, 0), Vector::new(-1, 0), Vector::new(0, 1), Vector::new(0, -1)];
+                    let has_conflicting_pipes = adjacents.iter().map(|a| pcb.entity_at(goto + a)).any(|f| {
+                        match f {
+                            Some(Entity { function: Function::Pipe(t), .. }) => t != kind,
+                            _ => false,
+                        }
+                    });
+                    if has_conflicting_pipes {
+                        continue;
+                    }
+                }
+
                 visited.insert(goto, dir);
 
                 // normal belt in that direction
@@ -164,7 +178,10 @@ fn mylee_internal(
                     let underground_end = walker.pos + (dir.to_vector() * (gap + 1));
                     // check for no interference with other underground belts in the way
                     match pcb.entity_at(underground_end) {
-                        Some(Entity { function: Function::UndergroundBelt(intersecting_dir, _), .. }) if intersecting_dir.is_same_axis(dir) => break,
+                        Some(Entity { function: Function::UndergroundBelt(intersecting_dir, _), .. })
+                            if intersecting_dir.is_same_axis(dir) && kind == &WireKind::Belt => break,
+                        Some(Entity { function: Function::UndergroundPipe(intersecting_dir), .. })
+                            if intersecting_dir.is_same_axis(dir) && kind != &WireKind::Belt => break,
                         Some(_) => continue,
                         _ => (),
                     }
