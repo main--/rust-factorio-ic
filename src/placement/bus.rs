@@ -7,7 +7,6 @@ use crate::recipe::Category;
 use crate::render;
 use super::Placer;
 
-use std::iter;
 use fnv::FnvHashMap;
 use petgraph::prelude::*;
 
@@ -90,7 +89,7 @@ impl Placer for BusPlacer {
 
             available_outputs.insert(input, (0..total_instances_needed).map(|i| Point::new(i, -1) + Vector::new(input_xoffset, gap_upper)).collect());
 
-            input_xoffset += total_instances_needed;
+            input_xoffset += total_instances_needed + 2;
         }
         let global_output_point = Point::new(0, -1) + Vector::new(input_xoffset, gap_upper);
         pcb.add(Entity { location: global_output_point, function: Function::Belt(Direction::Up) });
