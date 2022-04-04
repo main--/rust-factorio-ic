@@ -4,8 +4,7 @@ use fehler::throws;
 use either::Either;
 use fnv::FnvHashSet;
 
-use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function, NeededWire};
-use crate::render;
+use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function, NeededWire, WireKind};
 use crate::routing::{apply_lee_path, LogisticRoute, insert_underground_belts};
 
 bitflags::bitflags! {
@@ -19,7 +18,7 @@ bitflags::bitflags! {
 
 #[throws(())]
 pub fn mylee(pcb: &mut impl Pcb, &NeededWire { from, to, wire_kind }: &NeededWire, opts: Options) {
-    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts).ok_or(())?;
+    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts, wire_kind).ok_or(())?;
 
     apply_lee_path(pcb, from, path, wire_kind);
 }
@@ -98,7 +97,7 @@ impl Visited {
 }
 
 fn mylee_internal(
-    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options
+    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: WireKind,
 ) -> Option<Vec<LogisticRoute>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -137,7 +136,7 @@ fn mylee_internal(
                         path = insert_underground_belts(path.into_iter().map(|b| match b {
                             LogisticRoute::Normal(d) => d,
                             _ => unreachable!(),
-                        }));
+                        }), kind.gap_size());
                     }
                     return Some(path);
                 }
@@ -161,7 +160,7 @@ fn mylee_internal(
                     Some(belt) => belt.direction(),
                     None => continue,
                 };
-                for gap in 0..=4 {
+                for gap in 0..=(kind.gap_size() as i32) {
                     let underground_end = walker.pos + (dir.to_vector() * (gap + 1));
                     // check for no interference with other underground belts in the way
                     match pcb.entity_at(underground_end) {

@@ -134,6 +134,14 @@ pub enum WireKind {
     Belt,
     Pipe,
 }
+impl WireKind {
+    pub fn gap_size(&self) -> usize {
+        match self {
+            WireKind::Belt => 4,
+            WireKind::Pipe => 9,
+        }
+    }
+}
 pub fn need_belt(from: Point, to: Point) -> NeededWire {
     NeededWire { from, to, wire_kind: WireKind::Belt }
 }

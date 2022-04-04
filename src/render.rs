@@ -89,7 +89,6 @@ pub fn ascii_routed_wire(rows: &Vec<Vec<bool>>, path: &Vec<(i32, i32)>) -> Strin
 #[must_use]
 pub fn blueprint(pcb: &impl Pcb) -> String {
     use factorio_blueprint::{objects::*, BlueprintCodec, Container};
-    use std::convert::TryInto;
 
     let container = Container::Blueprint(Blueprint {
         item: "blueprint".to_owned(),

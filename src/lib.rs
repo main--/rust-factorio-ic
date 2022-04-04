@@ -2,8 +2,8 @@ use std::env;
 
 use pcb::NeededWire;
 
-use crate::pcb::{Pcb, Entity, Function, Direction, Point};
-use crate::placement::{Placer, SimpleGridPlacer, BusPlacer};
+use crate::pcb::{Pcb, Entity, Function, Direction};
+use crate::placement::{Placer, BusPlacer};
 
 mod recipe;
 mod kirkmcdonald;

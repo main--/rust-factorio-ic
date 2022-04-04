@@ -1,6 +1,5 @@
 use fehler::throws;
 
-use crate::render;
 use crate::pcb::{Pcb, NeededWires, Entity, Function, Point, Direction, NeededWire, WireKind};
 
 #[cfg(feature = "leemaze_lib")]
@@ -132,7 +131,7 @@ impl LogisticRoute {
     }
 }
 
-fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<LogisticRoute>
+fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I, gap_limit: usize) -> Vec<LogisticRoute>
     where I::IntoIter: Clone {
     let mut undergrounded_path = Vec::new();
     let mut path = path.into_iter();
@@ -150,7 +149,7 @@ fn insert_underground_belts<I: IntoIterator<Item=Direction>>(path: I) -> Vec<Log
         } else {
             // insert underground belt
             // FIXME: pipes can have distance of 9 instead of 4; also other belt types
-            let gap = std::cmp::min(tail_length - 2, 4) as i32;
+            let gap = std::cmp::min(tail_length - 2, gap_limit) as i32;
             undergrounded_path.push(LogisticRoute::Underground { dir: current_direction, gap });
             // skip belts we're replacing
             path.nth(gap.try_into().unwrap()).unwrap();
