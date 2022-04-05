@@ -1,3 +1,4 @@
+use crate::Rational;
 use crate::pcb::WireKind;
 use crate::recipe::{Category, Recipe, Ingredient};
 
@@ -5,16 +6,16 @@ use crate::recipe::{Category, Recipe, Ingredient};
 pub struct ProductionGraph {
     pub output: String,
     pub output_kind: WireKind,
-    pub per_second: f64,
+    pub per_second: Rational,
 
-    pub how_many: f64,
+    pub how_many: Rational,
     pub building: Option<Category>,
 
     // has no input nodes if this node "produces" raw ores, i.e. is an external input
     pub inputs: Vec<ProductionGraph>,
 }
 
-pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, output_kind: &WireKind) -> ProductionGraph {
+pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: Rational, output_kind: &WireKind) -> ProductionGraph {
     if output_kind != &WireKind::Belt {
         // right now we just blindly assume that we can't produce pipe outputs ever
         return ProductionGraph {
@@ -22,7 +23,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
             output_kind: output_kind.clone(),
             per_second: desired_per_second,
 
-            how_many: -1.,
+            how_many: Rational::from(-1),
             building: None,
 
             inputs: vec![],
@@ -30,15 +31,15 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
     }
 
     if let Some(recipe) = recipes.iter().filter(|x| (x.results.len() == 1) && (x.results[0].name == desired)).next() {
-        let results_per_step = recipe.results[0].amount as f64;
-        let step_duration = recipe.crafting_time;
+        let results_per_step = Rational::from(recipe.results[0].amount as i32);
+        let step_duration = Rational::approximate_float(recipe.crafting_time).unwrap();
         let results_per_second = results_per_step / step_duration;
         let how_many_concurrents = desired_per_second / results_per_second;
 
         let building_base_speed = match recipe.category {
-            Category::Assembler => 0.75,
-            Category::Furnace => 2.,
-            _ => -1., // unimplemented
+            Category::Assembler => Rational::new(3, 4),
+            Category::Furnace => Rational::from(2),
+            _ => Rational::from(-1), // unimplemented
         };
         let how_many = how_many_concurrents / building_base_speed;
 
@@ -46,7 +47,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
             .ingredients
             .iter()
             .map(|&Ingredient { ref name, amount, ref kind }| {
-                kirkmcdonald(recipes, name, amount as f64 / results_per_step * desired_per_second, kind)
+                kirkmcdonald(recipes, name, Rational::from(amount as i32) / results_per_step * desired_per_second, kind)
             })
             .collect();
 
@@ -66,7 +67,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: f64, 
             output_kind: output_kind.clone(),
             per_second: desired_per_second,
 
-            how_many: -1.,
+            how_many: Rational::from(-1),
             building: None,
 
             inputs: vec![],

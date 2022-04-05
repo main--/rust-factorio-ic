@@ -50,7 +50,7 @@ fn needed_cells<'a>(g: &'a ProductionGraph) -> Box<dyn Iterator<Item = &'a str> 
     let upstream = g.inputs.iter().flat_map(needed_cells);
     if g.building == Some(Category::Assembler) || g.building == Some(Category::Furnace) {
         println!("i={}", g.inputs.len());
-        Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil() as usize).chain(upstream))
+        Box::new(iter::repeat(&g.output as &str).take(g.how_many.ceil().to_integer() as usize).chain(upstream))
     } else {
         Box::new(upstream)
     }
@@ -84,7 +84,7 @@ fn gridrender_subtree(
             _ => unreachable!(),
         };
 
-        let howmany = subtree.how_many.ceil() as usize;
+        let howmany = subtree.how_many.ceil().to_integer() as usize;
         let mut prev = None;
         for _ in 0..howmany {
             let i = *grid_i;

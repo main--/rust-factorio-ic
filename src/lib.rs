@@ -1,5 +1,6 @@
 use std::env;
 
+use num_rational::Rational32;
 use pcb::NeededWire;
 
 use crate::pcb::{Pcb, Entity, Function, Direction};
@@ -12,6 +13,8 @@ mod placement;
 pub mod routing;
 mod render;
 
+type Rational = Rational32;
+
 pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &NeededWire) -> Result<(), ()>) {
     let path = env::args().nth(1).unwrap_or(
         "recipe".to_string()
@@ -19,7 +22,8 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &Neede
     let recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
 
-    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, amount, &pcb::WireKind::Belt);
+    let desired_per_second = Rational::approximate_float(amount).unwrap();
+    let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, desired_per_second, &pcb::WireKind::Belt);
     println!("{:#?}", tree);
 
     let mut pcb = P::default();
