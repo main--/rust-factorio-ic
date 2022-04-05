@@ -62,7 +62,7 @@ impl GridPcb {
         for tile in entity_tiles(&entity, self.grid_origin) {
             let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
             let entities = &self.entities;
-            assert!((*tile).checked_sub(1).and_then(|i| entities[i].as_ref()).is_none(), "Conflicting entities");
+            assert!((*tile).checked_sub(1).and_then(|i| entities.get(i).and_then(|e| e.as_ref())).is_none(), "Conflicting entities");
             *tile = index + 1;
         }
     }
@@ -82,12 +82,15 @@ impl Pcb for GridPcb {
     fn add(&mut self, entity: impl Borrow<Entity>) {
         let entity = entity.borrow();
         let index = self.entities.len();
-        self.entities.push(Some(entity.clone()));
         self.entity_rect.update(entity);
 
         while self.place_entity_on_grid(entity, index).is_none() {
             self.resize_grid();
         }
+
+        // try to place entity first so that when we retry the placement code it won't get mad
+        // about existing tiles of our entity (which read as None thanks to this)
+        self.entities.push(Some(entity.clone()));
     }
 
     fn remove_at(&mut self, point: Point) {
