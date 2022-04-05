@@ -55,6 +55,7 @@ impl Placer for BusPlacer {
 
         graph.add_edge(&tree.output, OUTPUT, tree.how_many);
 
+        // 2. build global inputs for the stuff we can't produce (i.e. ores, fluids, right now also chemical plant products like plastic and batteries)
         let mut global_inputs = Vec::new();
         for i in (0..order.len()).rev() {
             if graph.neighbors_directed(order[i], petgraph::Direction::Incoming).count() == 0 {
@@ -91,28 +92,32 @@ impl Placer for BusPlacer {
 
             input_xoffset += total_instances_needed + 2;
         }
+
+        // 3. global output
         let global_output_point = Point::new(0, -1) + Vector::new(input_xoffset, gap_upper);
         pcb.add(Entity { location: global_output_point, function: Function::Belt(Direction::Up) });
         pcb.add(Entity { location: global_output_point + Vector::new(0, -1), function: Function::Belt(Direction::Up) });
         pcb.add(Entity { location: global_output_point + Vector::new(0, -2), function: Function::Belt(Direction::Up) });
 
 
+        // 4. bus nodes!
         let col_vec = Vector::new(12, 0);
         let tile_vec = Vector::new(0, 4);
         for (col, &recipe) in order.iter().enumerate() {
-            for incoming in graph.neighbors_directed(recipe, petgraph::Direction::Incoming) {
+            let input_edges = graph.neighbors_directed(recipe, petgraph::Direction::Incoming);
+            for incoming in input_edges.clone() {
                 println!("[{}] in {} cost={}", recipe, incoming, graph[(incoming, recipe)]);
             }
 
-            let belt_inputs: Vec<_> = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() == WireKind::Belt).collect();
-            let pipe_input = graph.neighbors_directed(recipe, petgraph::Direction::Incoming).filter(|c| *kind_map.get(c).unwrap() != WireKind::Belt).next();
+            let belt_inputs = input_edges.clone().filter(|c| *kind_map.get(c).unwrap() == WireKind::Belt);
+            let pipe_input = input_edges.clone().filter(|c| *kind_map.get(c).unwrap() != WireKind::Belt).next();
             let ox = pipe_input.is_some() as i32;
 
-            let num_distinct_inputs = belt_inputs.len();
+            let num_distinct_inputs = belt_inputs.clone().count();
 
             let col_start = col_vec * (col as i32);
-            let howmany_total: f64 = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing).map(|x| graph[(recipe, x)]).sum();
-            let howmany_total = howmany_total.ceil() as i32;
+            let howmany_exact: f64 = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing).map(|x| graph[(recipe, x)]).sum();
+            let howmany_total = howmany_exact.ceil() as i32;
             println!("{} {}", recipe, howmany_total);
             for i in 0..howmany_total {
                 let tile_start = col_start + tile_vec * i;
@@ -173,7 +178,7 @@ impl Placer for BusPlacer {
                 vec![Point::new(1, 0)]
             };
 
-            for (input_name, input_point) in belt_inputs.into_iter().zip(input_points) {
+            for (input_name, input_point) in belt_inputs.zip(input_points) {
                 if let Some(outlist) = available_outputs.get_mut(input_name) {
                     needed_wires.push(NeededWire {
                         from: outlist.pop().unwrap(),
@@ -220,6 +225,8 @@ impl Placer for BusPlacer {
             }
         }
 
+        // 5. wire up the output to the last bus node
+        // (can't do this earlier because the output belt's exact position is only known here)
         needed_wires.push(need_belt(available_outputs.get_mut(&tree.output as &str).unwrap().pop().unwrap(), global_output_point));
 
         println!("{}", render::ascii(pcb));

@@ -17,7 +17,7 @@ rand = "0.7"
 bitflags = "1.2.1"
 either = "1.5.3"
 fnv = "1.0"
-petgraph = "0.5.1"
+petgraph = "0.6.0"
 
 [features]
 render_wiring_steps = []
