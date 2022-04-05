@@ -186,7 +186,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                     infinity_settings: None,
                     type_: underground_type,
                     input_priority: None,
-                    output_priority: None,
+                    output_priority: if name == "splitter" { Some(EntityPriority::Left) } else { None },
                     filter: None,
                     filters,
                     filter_mode: None,
