@@ -3,9 +3,9 @@ use std::iter;
 use bumpalo::Bump;
 use fehler::throws;
 use either::Either;
-use fnv::FnvHashSet;
+use ndarray::{Array2, Array3};
 
-use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function, NeededWire, WireKind};
+use crate::pcb::{Direction, Pcb, Point, Vector, ALL_DIRECTIONS, Entity, Function, NeededWire, WireKind, Rect};
 use crate::routing::{apply_lee_path, LogisticRoute, insert_underground_belts};
 
 bitflags::bitflags! {
@@ -19,9 +19,13 @@ bitflags::bitflags! {
 
 #[throws(())]
 pub fn mylee(pcb: &mut impl Pcb, &NeededWire { from, to, ref wire_kind }: &NeededWire, opts: Options) {
-    let path = mylee_internal(pcb, &ALL_DIRECTIONS, from, to, opts, wire_kind).ok_or(())?;
+    let path = if opts.contains(Options::VISITED_WITH_DIRECTIONS) {
+        mylee_internal::<_, WithDirections>(pcb, &ALL_DIRECTIONS, from, to, opts, wire_kind)
+    } else {
+        mylee_internal::<_, WithoutDirections>(pcb, &ALL_DIRECTIONS, from, to, opts, wire_kind)
+    };
 
-    apply_lee_path(pcb, from, path, wire_kind);
+    apply_lee_path(pcb, from, path.ok_or(())?, wire_kind);
 }
 
 struct MazewalkerHistoryEntry<'a> {
@@ -99,48 +103,68 @@ impl<'a> Mazewalker<'a> {
     }
 }
 
-struct Visited {
-    with_directions: bool,
-    fields: FnvHashSet<Point>,
-    fields_directions: FnvHashSet<(Point,Direction)>,
+trait VisitedArray {
+    fn new(x: i32, y: i32) -> Self;
+    fn get(&self, x: i32, y: i32, dir: Direction) -> bool;
+    fn set(&mut self, x: i32, y: i32, dir: Direction);
 }
+struct WithDirections(Array3<bool>);
+struct WithoutDirections(Array2<bool>);
 
-impl Visited {
-    fn new(with_directions: bool) -> Visited {
-        Visited {
-            with_directions,
-            fields: Default::default(),
-            fields_directions: Default::default(),
-        }
+impl VisitedArray for WithDirections {
+    fn new(x: i32, y: i32) -> Self {
+        WithDirections(Array3::default((x as usize, y as usize, 4)))
     }
 
-    fn insert(&mut self, point: Point, dir: Direction) {
-        if self.with_directions {
-            self.fields_directions.insert((point, dir));
-        } else {
-            self.fields.insert(point);
+    fn get(&self, x: i32, y: i32, dir: Direction) -> bool {
+        *self.0.get((x as usize, y as usize, dir as usize)).unwrap_or(&false)
+    }
+
+    fn set(&mut self, x: i32, y: i32, dir: Direction) {
+        *self.0.get_mut((x as usize, y as usize, dir as usize)).unwrap() = true;
+    }
+}
+impl VisitedArray for WithoutDirections {
+    fn new(x: i32, y: i32) -> Self {
+        WithoutDirections(Array2::default((x as usize, y as usize)))
+    }
+
+    fn get(&self, x: i32, y: i32, _: Direction) -> bool {
+        *self.0.get((x as usize, y as usize)).unwrap_or(&false)
+    }
+
+    fn set(&mut self, x: i32, y: i32, _: Direction) {
+        *self.0.get_mut((x as usize, y as usize)).unwrap() = true;
+    }
+}
+
+struct Visited<G> {
+    basis: Vector,
+    grid: G,
+}
+impl<G: VisitedArray> Visited<G> {
+    fn new(bounds: Rect) -> Self {
+        let basis = bounds.a.coords;
+        let size = bounds.b.coords - basis;
+        Self {
+            basis,
+            grid: G::new(size.x, size.y),
         }
+    }
+    fn insert(&mut self, point: Point, dir: Direction) {
+        let point = point - self.basis;
+
+        self.grid.set(point.x, point.y, dir);
     }
 
     fn contains(&self, point: Point, dir: Direction) -> bool {
-        if self.with_directions {
-            self.fields_directions.contains(&(point, dir))
-        } else {
-            self.fields.contains(&point)
-        }
-    }
-
-    fn len(&self) -> usize {
-        if self.with_directions {
-            self.fields_directions.len()
-        } else {
-            self.fields.len()
-        }
+        let point = point - self.basis;
+        self.grid.get(point.x, point.y, dir)
     }
 }
 
-fn mylee_internal(
-    pcb: &impl Pcb, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: &WireKind,
+fn mylee_internal<P: Pcb, G: VisitedArray>(
+    pcb: &P, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: &WireKind,
 ) -> Option<Vec<LogisticRoute>> {
     // ensure enough space around possible entities to possibly lay a belt around everything,
     // including a possible underground belt out, followed by an underground belt back in
@@ -149,7 +173,7 @@ fn mylee_internal(
     bounds.a += Vector::new(-2, -2);
     bounds.b += Vector::new(2, 2);
 
-    let mut visited = Visited::new(opts.contains(Options::VISITED_WITH_DIRECTIONS));
+    let mut visited = Visited::<G>::new(bounds);
 
     let bump = Bump::new();
 

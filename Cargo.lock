@@ -104,6 +104,7 @@ dependencies = [
  "nalgebra",
  "ndarray",
  "num-rational 0.4.0",
+ "num-traits",
  "petgraph",
  "rand",
  "rlua",
