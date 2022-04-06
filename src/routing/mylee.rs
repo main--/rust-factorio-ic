@@ -45,7 +45,7 @@ impl<'a> Mazewalker<'a> {
     }
     fn history_rev(&self) -> impl Iterator<Item=&'a LogisticRoute> + 'a {
         let mut path = self.path;
-        std::iter::from_fn(move || {
+        iter::from_fn(move || {
             match path {
                 Some(x) => {
                     let r = &x.route;
@@ -155,10 +155,11 @@ fn mylee_internal(
 
     // TODO: there's probably a much better algorithm based around some kind of cost heuristic
     let mut walkers = vec![Mazewalker::new(&bump, from)];
+    let mut next_walkers = Vec::new();
     while !walkers.is_empty() {
         // println!("{} walkers {} visited", walkers.len(), visited.len());
 
-        for walker in std::mem::replace(&mut walkers, Vec::new()) {
+        for walker in walkers.drain(..) {
             // println!("{} vs {}", walker.pos, to);
 
             let prev_step = walker.history_rev().next();
@@ -209,7 +210,7 @@ fn mylee_internal(
                 visited.insert(goto, dir);
 
                 // normal belt in that direction
-                walkers.push(walker.append_step(goto, LogisticRoute::Normal(dir)));
+                next_walkers.push(walker.append_step(goto, LogisticRoute::Normal(dir)));
             }
 
             // underground belts in the direction the last belt is pointing
@@ -252,10 +253,12 @@ fn mylee_internal(
                         return Some(next.append_step(goto, LogisticRoute::Normal(dir)).into_history_vec());
                     }
 
-                    walkers.push(next);
+                    next_walkers.push(next);
                 }
             }
         }
+
+        std::mem::swap(&mut walkers, &mut next_walkers);
     }
     None
 }
