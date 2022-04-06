@@ -23,6 +23,7 @@ pub enum Direction {
 }
 pub const ALL_DIRECTIONS: [Direction; 4] = [Direction::Right, Direction::Left, Direction::Down, Direction::Up];
 impl Direction {
+    #[inline]
     pub fn to_vector(&self) -> Vector {
         match self {
             Direction::Up => Vector::new(0, -1),
@@ -31,12 +32,14 @@ impl Direction {
             Direction::Right => Vector::new(1, 0),
         }
     }
+    #[inline]
     pub fn is_same_axis(&self, other: Direction) -> bool {
         match self {
             Direction::Up | Direction::Down => other == Direction::Up || other == Direction::Down,
             Direction::Left | Direction::Right => other == Direction::Left || other == Direction::Right,
         }
     }
+    #[inline]
     pub fn opposite_direction(&self) -> Direction {
         match self {
             Direction::Up => Direction::Down,

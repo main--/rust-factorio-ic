@@ -117,7 +117,7 @@ impl VisitedArray for WithDirections {
     }
 
     fn get(&self, x: i32, y: i32, dir: Direction) -> bool {
-        *self.0.get((x as usize, y as usize, dir as usize)).unwrap_or(&false)
+        self.0.get((x as usize, y as usize, dir as usize)).map(|x| *x).unwrap_or(false)
     }
 
     fn set(&mut self, x: i32, y: i32, dir: Direction) {
@@ -130,7 +130,7 @@ impl VisitedArray for WithoutDirections {
     }
 
     fn get(&self, x: i32, y: i32, _: Direction) -> bool {
-        *self.0.get((x as usize, y as usize)).unwrap_or(&false)
+        self.0.get((x as usize, y as usize)).map(|x| *x).unwrap_or(false)
     }
 
     fn set(&mut self, x: i32, y: i32, _: Direction) {
@@ -163,6 +163,7 @@ impl<G: VisitedArray> Visited<G> {
     }
 }
 
+#[inline(never)]
 fn mylee_internal<P: Pcb, G: VisitedArray>(
     pcb: &P, moveset: &[Direction], from: Point, to: Point, opts: Options, kind: &WireKind,
 ) -> Option<Vec<LogisticRoute>> {
