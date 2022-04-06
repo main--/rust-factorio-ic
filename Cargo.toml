@@ -10,9 +10,9 @@ edition = "2021"
 factorio-blueprint = { git = "https://github.com/coriolinus/factorio-blueprint", rev = "0809254a78b1165a2d7e014db9e377bfe55b8ecc" }
 rlua = "0.17"
 leemaze = { version = "0.1.11", optional = true }
-nalgebra = "0.21"
+nalgebra = "0.30.1"
 fehler = "1.0"
-ndarray = "0.13"
+ndarray = "0.15.4"
 rand = "0.7"
 bitflags = "1.2.1"
 either = "1.5.3"
