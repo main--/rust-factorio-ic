@@ -63,7 +63,7 @@ mod test {
     #[test] #[cfg(feature = "leemaze_lib")] fn logistic_0_75_leegacy() { run_leemaze::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_bad() { run_mylee_bad::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_bad_preferdir() { run_mylee_bad_preferdir::<GridPcb>("logistic-science-pack", 0.75) }
-    #[test] fn logistic_0_75_mylee_underground_bad() { run_mylee_underground_bad::<GridPcb>("logistic-science-pack", 0.75) }
+    //#[test] fn logistic_0_75_mylee_underground_bad() { run_mylee_underground_bad::<GridPcb>("logistic-science-pack", 0.75) }
     #[test] fn logistic_0_75_mylee_underground_preferdir() { run_mylee_underground_preferdir::<GridPcb>("logistic-science-pack", 0.75) }
 
     #[test] fn chemical_0_10_grid() { run_good::<GridPcb>("chemical-science-pack", 0.10) }
