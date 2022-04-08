@@ -4,7 +4,7 @@ use std::iter::{self, FromIterator};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point};
+use crate::pcb::{Pcb, Entity, Function, Direction, Rect, Point, InserterKind};
 use crate::routing::LogisticRoute;
 
 #[must_use]
@@ -125,7 +125,7 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                         position.y += 1.;
                         "electric-furnace"
                     }
-                    Function::Inserter { orientation, long_handed } => {
+                    Function::Inserter { orientation, kind } => {
                         // reverse direction because the game thinks about these differently than we
                         // do
                         direction = Some(match orientation {
@@ -134,7 +134,12 @@ pub fn blueprint(pcb: &impl Pcb) -> String {
                             Direction::Left => Direction::Right,
                             Direction::Right => Direction::Left,
                         });
-                        if long_handed { "long-handed-inserter" } else { "inserter" }
+                        match kind {
+                            InserterKind::Normal => "inserter",
+                            InserterKind::LongHanded => "long-handed-inserter",
+                            InserterKind::Fast => "fast-inserter",
+                            InserterKind::Stack => "stack-inserter",
+                        }
                     },
                     Function::Belt(d) => {
                         direction = Some(d);
@@ -258,8 +263,8 @@ impl AsciiCanvas {
                     canvas.set(e.location.x + 2, e.location.y + 2, '┘');
                     continue;
                 }
-                Function::Inserter { orientation: d, long_handed } => {
-                    if long_handed {
+                Function::Inserter { orientation: d, kind } => {
+                    if kind == InserterKind::LongHanded {
                         match d {
                             Direction::Up => '↟',
                             Direction::Down => '↡',

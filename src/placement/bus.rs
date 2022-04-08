@@ -2,14 +2,16 @@
 
 use std::iter;
 
+use crate::consts::Constants;
 use crate::{Entity, Direction, Function, Rational};
 use crate::kirkmcdonald::ProductionGraph;
-use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt, WireKind, NeededWire};
+use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt, WireKind, NeededWire, InserterKind};
 use crate::recipe::Category;
 use crate::render;
 use super::Placer;
 
 use fnv::FnvHashMap;
+use itertools::Itertools;
 use petgraph::prelude::*;
 
 pub struct BusPlacer;
@@ -23,7 +25,7 @@ struct Edge {
 }
 
 impl Placer for BusPlacer {
-    fn place(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
+    fn place(pcb: &mut impl Pcb, tree: &ProductionGraph, consts: &Constants) -> NeededWires {
         let mut needed_wires = NeededWires::new();
 
         // 1. calculate how much we need (i.e. flatten the production graph)
@@ -80,7 +82,7 @@ impl Placer for BusPlacer {
 
         let mut available_outputs = FnvHashMap::<&str, Vec<Point>>::default();
 
-        let lane_throughput = Rational::new(15, 2);
+        let lane_throughput = consts.max_belts.lane_items_per_second();
 
         let gap_upper = -10;
         let mut input_xoffset = 5;
@@ -128,8 +130,14 @@ impl Placer for BusPlacer {
             max_assemblers_per_unit: i32,
             num_assemblers_total: Rational,
             items_out_per_second_per_assembler: Rational,
-            items_in_per_second_per_assembler: FnvHashMap<&'a str, Rational>,
+            belt_inputs: Vec<BusNodeInput<'a>>,
             pipe_input: Option<&'a str>,
+            primary_inserter_kind: InserterKind,
+            out_serter_kind: InserterKind,
+        }
+        struct BusNodeInput<'a> {
+            name: &'a str,
+            items_per_second_per_assembler: Rational,
         }
         impl<'a> BusNode<'a> {
             /// One element per unit describing the number of assemblers in that unit
@@ -144,15 +152,15 @@ impl Placer for BusPlacer {
             }
             /// Desired input belts by item type and throughput
             fn desired_input_belts(&self) -> impl Iterator<Item=(&'a str, Rational)> + '_ {
-                self.units().flat_map(|i| self.items_in_per_second_per_assembler.iter().map(move |(&k, &v)| (k, v * i)))
+                self.units().flat_map(|i| self.belt_inputs.iter().map(move |x| (x.name, x.items_per_second_per_assembler * i)))
             }
             /// Number of required belt input lanes
             fn num_distinct_inputs(&self) -> usize {
-                self.items_in_per_second_per_assembler.len()
+                self.belt_inputs.len()
             }
             /// Belt input recipes
             fn belt_inputs(&self) -> impl Iterator<Item=&'a str> + '_ {
-                self.items_in_per_second_per_assembler.keys().copied()
+                self.belt_inputs.iter().map(|x| x.name)
             }
         }
         let mut bus_nodes = FnvHashMap::default();
@@ -168,10 +176,45 @@ impl Placer for BusPlacer {
 
             let howmany_exact: Rational = output_edges.clone().map(|x| graph[(recipe, x)].num_assemblers).sum();
 
-            let items_in_per_second_per_assembler = belt_inputs.clone().map(|i| (i, graph[(i, recipe)])).map(|(i, e)| (i, e.items_per_second / howmany_exact)).collect();
+            let find_inserter_kind = |bw: Rational, force_long: bool, name: &str| -> InserterKind {
+                if force_long {
+                    if bw > consts.long_inserter_items_per_second() {
+                        panic!("{} throughput of {} is too much for the long inserter!", name, bw);
+                    }
+                    return InserterKind::LongHanded;
+                }
+
+                if bw <= consts.basic_inserter_items_per_second() {
+                    InserterKind::Normal
+                } else if bw <= consts.fast_inserter_items_per_second() {
+                    InserterKind::Fast
+                } else if bw <= consts.stack_inserter_items_per_second() {
+                    InserterKind::Stack
+                } else {
+                    panic!("{} throughput of {} is too much for even a stack inserter!", name, bw);
+                }
+            };
+
+            let mut inputs: Vec<_> = belt_inputs.clone().map(|i| (i, graph[(i, recipe)])).map(|(i, e)| BusNodeInput { name: i, items_per_second_per_assembler: e.items_per_second / howmany_exact }).collect();
+            let long_inserter_tp = consts.long_inserter_items_per_second();
+            let (_, secondary_belt_inputs) = (0..inputs.len())
+                .combinations(inputs.len().saturating_sub(2))
+                .filter(|c| c.iter().copied().all_unique())
+                .map(|c| (c.iter().map(|&i| inputs[i].items_per_second_per_assembler).sum::<Rational>(), c))
+                .filter(|&(t, _)| t <= long_inserter_tp)
+                .max_by_key(|&(t, _)| t)
+                .expect("Secondary belt input bandwidth too high; long-handed inserter can't keep up!");
+            for (i, input_idx) in secondary_belt_inputs.into_iter().enumerate() {
+                inputs.swap(i + 2, input_idx);
+            }
+            let primary_inp_bw: Rational = inputs.iter().take(2).map(|c| c.items_per_second_per_assembler).sum();
+            let primary_inserter_kind = find_inserter_kind(primary_inp_bw, false, "Primary input belt");
+
             let in_max_throughput = belt_inputs.clone().map(|i| graph[(i, recipe)]).map(|e| e.items_per_second / howmany_exact).max().unwrap();
             let out_throughput = output_edges.clone().map(|o| graph[(recipe, o)]).map(|e| e.items_per_second / e.num_assemblers).next().unwrap();
             let io_max_throughput = std::cmp::max(in_max_throughput, out_throughput);
+
+            let out_serter_kind = find_inserter_kind(out_throughput, pipe_input.is_some(), "Output");
 
             let max_assemblers_per_unit = (lane_throughput / io_max_throughput).floor();
             println!("[{}] MAPU = {}", recipe, max_assemblers_per_unit);
@@ -183,16 +226,20 @@ impl Placer for BusPlacer {
                 max_assemblers_per_unit: max_assemblers_per_unit.to_integer(),
                 num_assemblers_total: howmany_exact,
                 items_out_per_second_per_assembler: out_throughput,
-                items_in_per_second_per_assembler,
+                belt_inputs: inputs,
                 pipe_input,
+                primary_inserter_kind,
+                out_serter_kind,
             });
         }
         bus_nodes.insert(OUTPUT, BusNode {
             max_assemblers_per_unit: 1,
             num_assemblers_total: Rational::from(1),
             items_out_per_second_per_assembler: Rational::from(0),
-            items_in_per_second_per_assembler: FnvHashMap::from_iter(std::iter::once((tree.output.as_str(), Rational::from(0)))),
-            pipe_input: None
+            belt_inputs: vec![BusNodeInput { name: tree.output.as_str(), items_per_second_per_assembler: Rational::from(0) }],
+            pipe_input: None,
+            primary_inserter_kind: InserterKind::Normal,
+            out_serter_kind: InserterKind::Normal,
         });
 
         let col_vec = Vector::new(12, 0);
@@ -212,10 +259,8 @@ impl Placer for BusPlacer {
 
             let ox = node.pipe_input.is_some() as i32;
 
-            //let num_extra_output_paths = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing).count() as i32 - 1;
             let mut consumers: Vec<_> = output_edges.clone().flat_map(|e| bus_nodes.get(e).unwrap().desired_input_belts().filter(|&(k, _)| k == recipe).map(|(_, v)| v)).collect();
             consumers.sort(); // sort biggest consumers to the back (where we start popping)
-            //println!("consumers for ");
             // here we employ the following algorithm:
             // - sort biggest consumers first
             // - for each subunit, look at the start of this list
@@ -250,7 +295,7 @@ impl Placer for BusPlacer {
                             Entity { location: Point::new(0, 1) + tile_start, function: Function::Belt(Direction::Down) },
                             Entity { location: Point::new(0, 2) + tile_start, function: Function::Belt(Direction::Down) },
                             Entity { location: Point::new(0, 3) + tile_start, function: Function::Belt(Direction::Down) },
-                            Entity { location: Point::new(2, 1) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: true } },
+                            Entity { location: Point::new(2, 1) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: InserterKind::LongHanded } },
                         ]);
                     }
                     // primary components: assembler, electricity, belts, inserters
@@ -264,8 +309,8 @@ impl Placer for BusPlacer {
                         Entity { location: Point::new(7 + ox, 2) + tile_start, function: Function::Belt(Direction::Up) },
                         Entity { location: Point::new(7 + ox, 3) + tile_start, function: Function::Belt(Direction::Up) },
 
-                        Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: false } },
-                        Entity { location: Point::new(6, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, long_handed: node.pipe_input.is_some() } },
+                        Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.primary_inserter_kind } },
+                        Entity { location: Point::new(6, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.out_serter_kind } },
                         Entity { location: Point::new(3, 0) + tile_start, function: function_map[recipe].clone() },
                         Entity { location: Point::new(2, 3) + tile_start, function: Function::ElectricPole },
                         Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },

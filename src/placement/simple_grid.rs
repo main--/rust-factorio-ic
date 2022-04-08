@@ -1,8 +1,9 @@
 //! very simple and stupid grid placer
 
+use crate::consts::Constants;
 use crate::{Entity, Direction, Function};
 use crate::kirkmcdonald::ProductionGraph;
-use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt};
+use crate::pcb::{Pcb, Point, Vector, NeededWires, need_belt, InserterKind};
 use crate::recipe::Category;
 use super::Placer;
 
@@ -11,7 +12,7 @@ use std::iter;
 pub struct SimpleGridPlacer;
 
 impl Placer for SimpleGridPlacer {
-    fn place(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires { simple_grid(pcb, tree) }
+    fn place(pcb: &mut impl Pcb, tree: &ProductionGraph, _: &Constants) -> NeededWires { simple_grid(pcb, tree) }
 }
 
 fn simple_grid(pcb: &mut impl Pcb, tree: &ProductionGraph) -> NeededWires {
@@ -115,7 +116,7 @@ fn gridrender_subtree(
                     location: start + Vector::new(1, 1),
                     function: Function::Inserter {
                         orientation: Direction::Left,
-                        long_handed: false,
+                        kind: InserterKind::Normal,
                     },
                 },
                 // input belt
@@ -126,7 +127,7 @@ fn gridrender_subtree(
                     location: start + Vector::new(5, 0),
                     function: Function::Inserter {
                         orientation: Direction::Left,
-                        long_handed: false,
+                        kind: InserterKind::Normal,
                     },
                 },
                 Entity { location: start + Vector::new(3, 3), function: Function::ElectricPole },
@@ -160,7 +161,7 @@ fn gridrender_subtree(
                         location: start + Vector::new(5, 1),
                         function: Function::Inserter {
                             orientation: Direction::Left,
-                            long_handed: true,
+                            kind: InserterKind::LongHanded,
                         },
                     },
                 ]);

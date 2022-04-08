@@ -50,11 +50,19 @@ impl Direction {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InserterKind {
+    Normal,
+    LongHanded,
+    Fast,
+    Stack,
+}
+
 #[derive(Debug, Clone)]
 pub enum Function {
     Assembler { recipe: String },
     Furnace,
-    Inserter { orientation: Direction, long_handed: bool },
+    Inserter { orientation: Direction, kind: InserterKind },
     Belt(Direction),
     UndergroundBelt(Direction, bool),
     Splitter(Direction),

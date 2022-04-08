@@ -3,6 +3,7 @@ use std::env;
 use num_rational::Rational32;
 use pcb::NeededWire;
 
+use crate::consts::Constants;
 use crate::pcb::{Pcb, Entity, Function, Direction};
 use crate::placement::{Placer, BusPlacer};
 
@@ -12,6 +13,7 @@ pub mod pcb;
 mod placement;
 pub mod routing;
 mod render;
+mod consts;
 
 type Rational = Rational32;
 
@@ -26,8 +28,9 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &Neede
     let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, desired_per_second, &pcb::WireKind::Belt);
     println!("{:#?}", tree);
 
+
     let mut pcb = P::default();
-    let needed_wires = BusPlacer::place(&mut pcb, &tree);
+    let needed_wires = BusPlacer::place(&mut pcb, &tree, &Constants::default());
 
     println!("rendering {} wires", needed_wires.len());
 
