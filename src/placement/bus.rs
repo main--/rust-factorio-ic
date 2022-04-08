@@ -373,10 +373,21 @@ impl Placer for BusPlacer {
                 }
                 // fluid inputs as well
                 if let Some(pipe_input) = node.pipe_input {
-                    if let Some(from) = available_outputs.get_mut(pipe_input).and_then(|outlist| outlist.pop()) {
+                    // daisy-chain fluids
+                    let to = Point::new(7, 0) + col_start;
+                    let from = available_outputs.get_mut(pipe_input).and_then(|outlist| {
+                        match outlist.pop() {
+                            None => None,
+                            Some(x) => {
+                                outlist.push(to);
+                                Some(x)
+                            }
+                        }
+                    });
+                    if let Some(from) = from {
                         needed_wires.push(NeededWire {
                             from,
-                            to: Point::new(7, 0) + col_start,
+                            to,
                             wire_kind: WireKind::Pipe(pipe_input.to_owned()),
                         });
                     }
