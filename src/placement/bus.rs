@@ -1,5 +1,6 @@
 //! bus-style placer
 
+use std::cell::RefCell;
 use std::iter;
 
 use crate::consts::Constants;
@@ -90,16 +91,15 @@ impl Placer for BusPlacer {
             let kind = kind_map.get(input).unwrap();
 
             let total_instances_needed: i32 = graph.neighbors_directed(input, petgraph::Direction::Outgoing).map(|e| (graph[(input, e)].items_per_second / lane_throughput).ceil().to_integer()).sum();
-            for i in 1..total_instances_needed { // FIXME: this loop is untested, not sure how to trigger it
-                for j in 0..(total_instances_needed-2) {
-                    pcb.add(Entity { location: Point::new(j, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+            for i in 1..total_instances_needed {
+                for j in 0..(total_instances_needed-i-1) {
+                    pcb.add(Entity { location: Point::new(j, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
                 }
-                pcb.add(Entity { location: Point::new(total_instances_needed-2, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
-                pcb.add(Entity { location: Point::new(total_instances_needed-2, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-                pcb.add(Entity { location: Point::new(total_instances_needed-1, -i) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+                pcb.add(Entity { location: Point::new(total_instances_needed-1-i, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
             }
-            if total_instances_needed == 1 {
-                pcb.add(Entity { location: Point::new(0, -total_instances_needed) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+
+            for i in 0..total_instances_needed {
+                pcb.add(Entity { location: Point::new(i, -1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
             }
 
             let input_name = match kind {
@@ -134,6 +134,8 @@ impl Placer for BusPlacer {
             pipe_input: Option<&'a str>,
             primary_inserter_kind: InserterKind,
             out_serter_kind: InserterKind,
+
+            belt_inbox: RefCell<FnvHashMap<&'a str, Vec<Point>>>,
         }
         struct BusNodeInput<'a> {
             name: &'a str,
@@ -230,6 +232,7 @@ impl Placer for BusPlacer {
                 pipe_input,
                 primary_inserter_kind,
                 out_serter_kind,
+                belt_inbox: RefCell::default(),
             });
         }
         bus_nodes.insert(OUTPUT, BusNode {
@@ -240,6 +243,7 @@ impl Placer for BusPlacer {
             pipe_input: None,
             primary_inserter_kind: InserterKind::Normal,
             out_serter_kind: InserterKind::Normal,
+            belt_inbox: RefCell::default(),
         });
 
         let col_vec = Vector::new(12, 0);
@@ -259,8 +263,10 @@ impl Placer for BusPlacer {
 
             let ox = node.pipe_input.is_some() as i32;
 
-            let mut consumers: Vec<_> = output_edges.clone().flat_map(|e| bus_nodes.get(e).unwrap().desired_input_belts().filter(|&(k, _)| k == recipe).map(|(_, v)| v)).collect();
-            consumers.sort(); // sort biggest consumers to the back (where we start popping)
+            let mut consumers: Vec<_> = output_edges.clone()
+                .map(|e| bus_nodes.get(e).unwrap())
+                .flat_map(|n| n.desired_input_belts().filter(|&(k, _)| k == recipe).map(move |(_, v)| (v, n))).collect();
+            consumers.sort_by_key(|x| x.0); // sort biggest consumers to the back (where we start popping)
             // here we employ the following algorithm:
             // - sort biggest consumers first
             // - for each subunit, look at the start of this list
@@ -355,7 +361,9 @@ impl Placer for BusPlacer {
 
                 // request wire connections towards our belt inputs
                 for (input_name, input_point) in node.belt_inputs().zip(input_points) {
-                    if let Some(from) = available_outputs.get_mut(input_name).and_then(|outlist| outlist.pop()) {
+                    let direct_feed = node.belt_inbox.borrow_mut().get_mut(input_name).and_then(|ol| ol.pop());
+                    let from = direct_feed.or_else(|| available_outputs.get_mut(input_name).and_then(|outlist| outlist.pop()));
+                    if let Some(from) = from {
                         needed_wires.push(NeededWire {
                             from,
                             to: input_point + col_start,
@@ -365,9 +373,9 @@ impl Placer for BusPlacer {
                 }
                 // fluid inputs as well
                 if let Some(pipe_input) = node.pipe_input {
-                    if let Some(outlist) = available_outputs.get_mut(pipe_input) {
+                    if let Some(from) = available_outputs.get_mut(pipe_input).and_then(|outlist| outlist.pop()) {
                         needed_wires.push(NeededWire {
-                            from: outlist.pop().unwrap(),
+                            from,
                             to: Point::new(7, 0) + col_start,
                             wire_kind: WireKind::Pipe(pipe_input.to_owned()),
                         });
@@ -389,19 +397,22 @@ impl Placer for BusPlacer {
                     flow += carry.flow;
                 }
 
+                let mut consumers_here = Vec::new();
                 let mut num_output_paths = 0;
-                while let Some(&consumer) = consumers.last() {
-                    if consumer <= flow {
+                while let Some(&(consumer_flow, consumer)) = consumers.last() {
+                    if consumer_flow <= flow {
                         consumers.pop();
-                        flow -= consumer;
+                        flow -= consumer_flow;
                         num_output_paths += 1;
+                        consumers_here.push(consumer);
                     } else {
                         break;
                     }
                 }
 
                 // needs a carry
-                if !consumers.is_empty() {
+                let needs_carry = (flow > Rational::from(0)) && !consumers.is_empty();
+                if needs_carry {
                     num_output_paths += 1;
                 }
 
@@ -424,7 +435,7 @@ impl Placer for BusPlacer {
                     Entity { location: Point::new(9 + ox, num_output_paths * 2 - 1) + col_start, function: Function::Belt(Direction::Right) },
                 ]);
                 let default_out_point = Point::new(9 + ox, num_output_paths * 2 - 1) + col_start;
-                if (flow > Rational::from(0)) && !consumers.is_empty() {
+                if needs_carry {
                     output_belt_carry = Some(OutputBeltCarry {
                         end: default_out_point,
                         flow,
@@ -436,7 +447,11 @@ impl Placer for BusPlacer {
 
 
                 output_nodes.reverse();
-                available_outputs.entry(recipe).or_default().extend_from_slice(&output_nodes);
+                //available_outputs.entry(recipe).or_default().extend_from_slice(&output_nodes);
+                assert_eq!(output_nodes.len(), consumers_here.len());
+                for (point, customer) in output_nodes.into_iter().zip(consumers_here) {
+                    customer.belt_inbox.borrow_mut().entry(recipe).or_default().insert(0, point);
+                }
 
                 for outgoing in output_edges.clone() {
                     println!("[{}] out {} cost={}", recipe, outgoing, graph[(recipe, outgoing)].num_assemblers);
@@ -448,7 +463,9 @@ impl Placer for BusPlacer {
 
         // 5. wire up the output to the last bus node
         // (can't do this earlier because the output belt's exact position is only known here)
-        needed_wires.push(need_belt(available_outputs.get_mut(&tree.output as &str).unwrap().pop().unwrap(), global_output_point));
+        //let final_output_belt = available_outputs.get_mut(&tree.output as &str).unwrap().pop().unwrap();
+        let final_output_belt = *bus_nodes.get(OUTPUT).unwrap().belt_inbox.borrow().get(tree.output.as_str()).unwrap().last().unwrap();
+        needed_wires.push(need_belt(final_output_belt, global_output_point));
 
         println!("{}", render::ascii(pcb));
 

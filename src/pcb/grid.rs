@@ -62,7 +62,10 @@ impl GridPcb {
         for tile in entity_tiles(&entity, self.grid_origin) {
             let tile = self.grid.get_mut((tile.x as usize, tile.y as usize))?;
             let entities = &self.entities;
-            assert!((*tile).checked_sub(1).and_then(|i| entities.get(i).and_then(|e| e.as_ref())).is_none(), "Conflicting entities");
+            if (*tile).checked_sub(1).and_then(|i| entities.get(i).and_then(|e| e.as_ref())).is_some() {
+                eprintln!("{}", crate::render::ascii(self));
+                panic!("Conflicting entities");
+            }
             *tile = index + 1;
         }
     }
