@@ -427,6 +427,10 @@ impl Placer for BusPlacer {
                     num_output_paths += 1;
                 }
 
+                let synth_splitter_for_carry_in = output_belt_carry.is_some() && num_output_paths == 1;
+                if synth_splitter_for_carry_in {
+                    num_output_paths += 1;
+                }
 
                 // split up outputs
                 pcb.replace(Entity { location: Point::new(7 + ox, 0) + col_start, function: Function::Belt(Direction::Right) });
@@ -441,18 +445,24 @@ impl Placer for BusPlacer {
                     ]);
                     output_nodes.push(Point::new(1, 1) + tile_start);
                 }
-                pcb.add_all(&[
-                    Entity { location: Point::new(8 + ox, num_output_paths * 2 - 1) + col_start, function: Function::Belt(Direction::Right) },
-                    Entity { location: Point::new(9 + ox, num_output_paths * 2 - 1) + col_start, function: Function::Belt(Direction::Right) },
-                ]);
-                let default_out_point = Point::new(9 + ox, num_output_paths * 2 - 1) + col_start;
+
+                if synth_splitter_for_carry_in {
+                    pcb.replace(Entity { location: Point::new(8+ox, 2) + col_start, function: Function::Belt(Direction::Up) });
+                } else {
+                    pcb.add_all(&[
+                        Entity { location: Point::new(8 + ox, num_output_paths * 2 - 1) + col_start, function: Function::Belt(Direction::Right) },
+                        Entity { location: Point::new(9 + ox, num_output_paths * 2 - 1) + col_start, function: Function::Belt(Direction::Right) },
+                    ]);
+                    let default_out_point = Point::new(9 + ox, num_output_paths * 2 - 1) + col_start;
+                    output_nodes.push(default_out_point);
+                }
+
                 if needs_carry {
                     output_belt_carry = Some(OutputBeltCarry {
-                        end: default_out_point,
+                        end: output_nodes.pop().unwrap(),
                         flow,
                     });
                 } else {
-                    output_nodes.push(default_out_point);
                     output_belt_carry = None;
                 }
 
