@@ -16,6 +16,8 @@ use std::sync::atomic::AtomicBool;
 use rand::prelude::*;
 
 pub fn route<P: Pcb>(pcb: &mut P, needed_wires: NeededWires, pathfinder_fn: impl Fn(&mut P, &NeededWire) -> Result<(), ()> + Clone + Send + 'static) {
+    let desired_results = 10;
+
     // TODO: dynamic thread count; if 1 then don't spawn anything and just run directly on this thread
     let canceled = Arc::new(AtomicBool::new(false));
     let (tx, rx) = std::sync::mpsc::channel();
@@ -26,14 +28,31 @@ pub fn route<P: Pcb>(pcb: &mut P, needed_wires: NeededWires, pathfinder_fn: impl
         let pathfinder_fn = pathfinder_fn.clone();
         let tx = tx.clone();
         std::thread::spawn(move || {
-            if let Some(result) = route_worker(pcb, tid, &canceled, needed_wires, pathfinder_fn) {
+            let mut tid = tid;
+            while let Some(result) = route_worker(pcb.clone(), tid, &canceled, needed_wires.clone(), pathfinder_fn.clone()) {
                 let _ = tx.send(result);
+                tid += 8;
             }
         });
     }
 
-    *pcb = rx.recv().unwrap();
+    let mut results_buf = Vec::new();
+    while results_buf.len() < desired_results {
+        let p = rx.recv().unwrap();
+        results_buf.push(p);
+        println!("==== SOLUTION#{} ====", results_buf.len());
+    }
+
     canceled.store(true, std::sync::atomic::Ordering::SeqCst);
+
+    for p in &results_buf {
+        let mut p2 = p.clone();
+        reduce_gratuitous_undergrounds(&mut p2);
+        println!("{} / {} entities", p.entities().count(), p2.entities().count());
+    }
+
+    *pcb = results_buf.into_iter().min_by_key(|p| p.entities().count()).unwrap();
+
     reduce_gratuitous_undergrounds(pcb);
 }
 
@@ -69,6 +88,8 @@ pub fn route_worker<P: Pcb>(
                 if panic == temperature {
                     panic = 0;
                     temperature += 1;
+                    println!("[{tid}] temp={}", temperature);
+
 
                     needed_wires.shuffle(&mut rng);
                 }
@@ -76,7 +97,7 @@ pub fn route_worker<P: Pcb>(
                 total_depth += i + 1;
                 total_tries += 1;
                 panic += 1;
-                println!("[{tid}] panic={}", panic);
+                //println!("[{tid}] panic={}", panic);
             }
         }
     }
