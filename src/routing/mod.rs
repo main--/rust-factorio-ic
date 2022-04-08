@@ -11,27 +11,56 @@ mod mylee;
 pub use mylee::{mylee as mylee, Options as MyleeOptions};
 
 use std::convert::TryInto;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use rand::prelude::*;
 
-pub fn route<P: Pcb>(pcb: &mut P, mut needed_wires: NeededWires, pathfinder_fn: impl Fn(&mut P, &NeededWire) -> Result<(), ()>) {
+pub fn route<P: Pcb>(pcb: &mut P, needed_wires: NeededWires, pathfinder_fn: impl Fn(&mut P, &NeededWire) -> Result<(), ()> + Clone + Send + 'static) {
+    // TODO: dynamic thread count; if 1 then don't spawn anything and just run directly on this thread
+    let canceled = Arc::new(AtomicBool::new(false));
+    let (tx, rx) = std::sync::mpsc::channel();
+    for tid in 0..8 {
+        let pcb = pcb.clone();
+        let canceled = Arc::clone(&canceled);
+        let needed_wires = needed_wires.clone();
+        let pathfinder_fn = pathfinder_fn.clone();
+        let tx = tx.clone();
+        std::thread::spawn(move || {
+            if let Some(result) = route_worker(pcb, tid, &canceled, needed_wires, pathfinder_fn) {
+                let _ = tx.send(result);
+            }
+        });
+    }
+
+    *pcb = rx.recv().unwrap();
+    canceled.store(true, std::sync::atomic::Ordering::SeqCst);
+    reduce_gratuitous_undergrounds(pcb);
+}
+
+pub fn route_worker<P: Pcb>(
+    pcb: P,
+    tid: u64,
+    canceled: &AtomicBool,
+    mut needed_wires: NeededWires,
+    pathfinder_fn: impl Fn(&mut P, &NeededWire) -> Result<(), ()>
+) -> Option<P> {
     // simulated annealing-ish to choose wiring order
     let mut panic = 0;
     let mut temperature = 20;
-    let mut rng = StdRng::from_seed([0; 32]);
+
+    let mut rng = StdRng::seed_from_u64(tid);
     let mut total_tries = 0;
     let mut total_depth = 0;
 
-    loop {
+    while !canceled.load(std::sync::atomic::Ordering::Relaxed) {
         match try_wiring(pcb.clone(), &needed_wires, &pathfinder_fn) {
             Ok(p) => {
-                *pcb = p;
                 total_tries += 1;
                 total_depth += needed_wires.len();
-                println!("total tries: {}", total_tries);
-                println!("total depth: {}", total_depth);
-                println!("averg depth: {:2}", total_depth as f32 / total_tries as f32);
-                reduce_gratuitous_undergrounds(pcb);
-                return;
+                println!("[{tid}] total tries: {}", total_tries);
+                println!("[{tid}] total depth: {}", total_depth);
+                println!("[{tid}] averg depth: {:2}", total_depth as f32 / total_tries as f32);
+                return Some(p);
             }
             Err(i) => {
                 let ele = needed_wires.remove(i);
@@ -47,10 +76,12 @@ pub fn route<P: Pcb>(pcb: &mut P, mut needed_wires: NeededWires, pathfinder_fn: 
                 total_depth += i + 1;
                 total_tries += 1;
                 panic += 1;
-                println!("panic={}", panic);
+                println!("[{tid}] panic={}", panic);
             }
         }
     }
+
+    None
 }
 
 fn reduce_gratuitous_undergrounds(pcb: &mut impl Pcb) {

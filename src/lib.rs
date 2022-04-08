@@ -17,7 +17,7 @@ mod consts;
 
 type Rational = Rational32;
 
-pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &NeededWire) -> Result<(), ()>) {
+pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &NeededWire) -> Result<(), ()> + Clone + Send + 'static) {
     let path = env::args().nth(1).unwrap_or(
         "recipe".to_string()
     );

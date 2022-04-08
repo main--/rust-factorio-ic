@@ -135,6 +135,7 @@ impl Rect {
 }
 
 pub type NeededWires = Vec<NeededWire>;
+#[derive(Debug, Clone)]
 pub struct NeededWire {
     pub from: Point,
     pub to: Point,
@@ -157,7 +158,8 @@ pub fn need_belt(from: Point, to: Point) -> NeededWire {
     NeededWire { from, to, wire_kind: WireKind::Belt }
 }
 
-pub trait Pcb: Default + Clone where for<'a> Self: PcbRef<'a> {
+// TODO: Send + 'static bounds should go away eventually
+pub trait Pcb: Default + Clone + Send + 'static where for<'a> Self: PcbRef<'a> {
     fn add(&mut self, entity: impl Borrow<Entity>);
     fn add_all<I>(&mut self, iter: I) where I: IntoIterator, I::Item: Borrow<Entity> {
         for e in iter { self.add(e); }
