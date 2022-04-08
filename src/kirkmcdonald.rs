@@ -31,7 +31,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: Ratio
     }
 
     if let Some(recipe) = recipes.iter().filter(|x| (x.results.len() == 1) && (x.results[0].name == desired)).next() {
-        let results_per_step = Rational::from(recipe.results[0].amount as i32);
+        let results_per_step = recipe.results[0].amount;
         let step_duration = Rational::approximate_float(recipe.crafting_time).unwrap();
         let results_per_second = results_per_step / step_duration;
         let how_many_concurrents = desired_per_second / results_per_second;
@@ -47,7 +47,7 @@ pub fn kirkmcdonald(recipes: &[Recipe], desired: &str, desired_per_second: Ratio
             .ingredients
             .iter()
             .map(|&Ingredient { ref name, amount, ref kind }| {
-                kirkmcdonald(recipes, name, Rational::from(amount as i32) / results_per_step * desired_per_second, kind)
+                kirkmcdonald(recipes, name, amount / results_per_step * desired_per_second, kind)
             })
             .collect();
 

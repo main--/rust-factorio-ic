@@ -2,6 +2,7 @@ use std::path::Path;
 
 use rlua::{Lua, Result, Table};
 
+use crate::Rational;
 use crate::pcb::WireKind;
 
 #[derive(Debug, Clone)]
@@ -28,7 +29,7 @@ pub type ItemSpec = Vec<Ingredient>;
 #[derive(Debug, Clone)]
 pub struct Ingredient {
     pub name: String,
-    pub amount: u32,
+    pub amount: Rational,
     pub kind: WireKind,
 }
 
@@ -87,7 +88,7 @@ data = Importer:create()
                 let ingredients = normalize_item_spec(item.get("ingredients")?)?;
                 let crafting_time = item.get("energy_required").unwrap_or(0.5);
                 let results = match item.get("result") {
-                    Ok(r) => vec![Ingredient { name: r, amount: item.get("result_count").unwrap_or(1), kind: WireKind::Belt }],
+                    Ok(r) => vec![Ingredient { name: r, amount: Rational::from(item.get("result_count").unwrap_or(1)), kind: WireKind::Belt }],
                     _ => normalize_item_spec(item.get("results")?)?,
                 };
 
@@ -125,7 +126,7 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
     for item in table.sequence_values::<Table>() {
         let item = item?;
         let name: String;
-        let amount;
+        let amount: i32;
         if item.contains_key("name")? {
             name = item.get("name")?;
             amount = item.get("amount")?;
@@ -137,7 +138,7 @@ fn normalize_item_spec(table: Table) -> Result<ItemSpec> {
             Ok(s) if s == "fluid" => WireKind::Pipe(name.to_owned()),
             _ => WireKind::Belt,
         };
-        items.push(Ingredient { name, amount, kind });
+        items.push(Ingredient { name, amount: Rational::from(amount), kind });
     }
     Ok(items)
 }
