@@ -25,8 +25,28 @@ struct Edge {
     items_per_second: Rational,
 }
 
+/*
+struct ROInputReplacement {
+    from: &'static str,
+    to: &'static str,
+}
+struct RecipeOverride {
+    name: &'static str,
+    multiple: i32,
+    input_replacements: &'static [ROInputReplacement],
+}
+
+fn apply_recipe_overrides(tree: &ProductionGraph) -> ProductionGraph {
+    tree.output
+}*/
+
+
+
 impl Placer for BusPlacer {
     fn place(pcb: &mut impl Pcb, tree: &ProductionGraph, consts: &Constants) -> NeededWires {
+        // 0. apply recipe overrides
+        //let tree = apply_recipe_overrides(tree);
+
         let mut needed_wires = NeededWires::new();
 
         // 1. calculate how much we need (i.e. flatten the production graph)
@@ -85,47 +105,12 @@ impl Placer for BusPlacer {
 
         let lane_throughput = consts.max_belts.lane_items_per_second();
 
-        let gap_upper = -10;
-        let mut input_xoffset = 5;
-        for input in global_inputs {
-            let kind = kind_map.get(input).unwrap();
-
-            let total_instances_needed: i32 = graph.neighbors_directed(input, petgraph::Direction::Outgoing).map(|e| (graph[(input, e)].items_per_second / lane_throughput).ceil().to_integer()).sum();
-            for i in 1..total_instances_needed {
-                for j in 0..(total_instances_needed-i-1) {
-                    pcb.add(Entity { location: Point::new(j, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-                }
-                pcb.add(Entity { location: Point::new(total_instances_needed-1-i, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
-            }
-
-            for i in 0..total_instances_needed {
-                pcb.add(Entity { location: Point::new(i, -1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-            }
-
-            let input_name = match kind {
-                WireKind::Belt => input.to_owned(),
-                WireKind::Pipe(_) => format!("{}-barrel", input),
-            };
-            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input_name) });
-            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 2) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
-
-            available_outputs.insert(input, (0..total_instances_needed).map(|i| Point::new(i, -1) + Vector::new(input_xoffset, gap_upper)).collect());
-
-            input_xoffset += total_instances_needed + 2;
-        }
-
-        // 3. global output
-        let global_output_point = Point::new(0, -1) + Vector::new(input_xoffset, gap_upper);
-        pcb.add(Entity { location: global_output_point, function: Function::Belt(Direction::Up) });
-        pcb.add(Entity { location: global_output_point + Vector::new(0, -1), function: Function::Belt(Direction::Up) });
-        pcb.add(Entity { location: global_output_point + Vector::new(0, -2), function: Function::Belt(Direction::Up) });
-
-
         // 4. bus nodes!
         // Vocabulary:
         // "column" / "unit": bus node
         // "subunit": bus node that was created when splitting a bus node into multiple smaller ones
         // "tile": one assembler + supporting structures (inserter, belt, power etc) inside a bus node
+        #[derive(Debug)]
         struct BusNode<'a> {
             max_assemblers_per_unit: i32,
             num_assemblers_total: Rational,
@@ -137,6 +122,7 @@ impl Placer for BusPlacer {
 
             belt_inbox: RefCell<FnvHashMap<&'a str, Vec<Point>>>,
         }
+        #[derive(Debug)]
         struct BusNodeInput<'a> {
             name: &'a str,
             items_per_second_per_assembler: Rational,
@@ -165,6 +151,26 @@ impl Placer for BusPlacer {
                 self.belt_inputs.iter().map(|x| x.name)
             }
         }
+
+        let find_inserter_kind = |bw: Rational, force_long: bool, name: &str| -> InserterKind {
+            if force_long {
+                if bw > consts.long_inserter_items_per_second() {
+                    panic!("{} throughput of {} is too much for the long inserter!", name, bw);
+                }
+                return InserterKind::LongHanded;
+            }
+
+            if bw <= consts.basic_inserter_items_per_second() {
+                InserterKind::Normal
+            } else if bw <= consts.fast_inserter_items_per_second() {
+                InserterKind::Fast
+            } else if bw <= consts.stack_inserter_items_per_second() {
+                InserterKind::Stack
+            } else {
+                panic!("{} throughput of {} is too much for even a stack inserter!", name, bw);
+            }
+        };
+
         let mut bus_nodes = FnvHashMap::default();
         for &recipe in order.iter() {
             let input_edges = graph.neighbors_directed(recipe, petgraph::Direction::Incoming);
@@ -176,26 +182,13 @@ impl Placer for BusPlacer {
             let belt_inputs = input_edges.clone().filter(|c| *kind_map.get(c).unwrap() == WireKind::Belt);
             let pipe_input = input_edges.clone().filter(|c| *kind_map.get(c).unwrap() != WireKind::Belt).next();
 
-            let howmany_exact: Rational = output_edges.clone().map(|x| graph[(recipe, x)].num_assemblers).sum();
-
-            let find_inserter_kind = |bw: Rational, force_long: bool, name: &str| -> InserterKind {
-                if force_long {
-                    if bw > consts.long_inserter_items_per_second() {
-                        panic!("{} throughput of {} is too much for the long inserter!", name, bw);
-                    }
-                    return InserterKind::LongHanded;
-                }
-
-                if bw <= consts.basic_inserter_items_per_second() {
-                    InserterKind::Normal
-                } else if bw <= consts.fast_inserter_items_per_second() {
-                    InserterKind::Fast
-                } else if bw <= consts.stack_inserter_items_per_second() {
-                    InserterKind::Stack
-                } else {
-                    panic!("{} throughput of {} is too much for even a stack inserter!", name, bw);
-                }
+            let multiplier = if recipe == "electronic-circuit" {
+                Rational::new(2, 1)
+            } else {
+                Rational::from(1)
             };
+
+            let howmany_exact = output_edges.clone().map(|x| graph[(recipe, x)].num_assemblers).sum::<Rational>() / multiplier;
 
             let mut inputs: Vec<_> = belt_inputs.clone().map(|i| (i, graph[(i, recipe)])).map(|(i, e)| BusNodeInput { name: i, items_per_second_per_assembler: e.items_per_second / howmany_exact }).collect();
             let long_inserter_tp = consts.long_inserter_items_per_second();
@@ -213,7 +206,7 @@ impl Placer for BusPlacer {
             let primary_inserter_kind = find_inserter_kind(primary_inp_bw, false, "Primary input belt");
 
             let in_max_throughput = belt_inputs.clone().map(|i| graph[(i, recipe)]).map(|e| e.items_per_second / howmany_exact).max().unwrap();
-            let out_throughput = output_edges.clone().map(|o| graph[(recipe, o)]).map(|e| e.items_per_second / e.num_assemblers).next().unwrap();
+            let out_throughput = output_edges.clone().map(|o| graph[(recipe, o)]).map(|e| e.items_per_second / e.num_assemblers).next().unwrap() * multiplier;
             let io_max_throughput = std::cmp::max(in_max_throughput, out_throughput);
 
             let out_serter_kind = find_inserter_kind(out_throughput, pipe_input.is_some(), "Output");
@@ -246,10 +239,66 @@ impl Placer for BusPlacer {
             belt_inbox: RefCell::default(),
         });
 
+
+
+        let gap_upper = std::cmp::min(-(bus_nodes.len() as i32), -5);
+        let mut input_xoffset = 5;
+        for input in global_inputs {
+            let kind = kind_map.get(input).unwrap();
+
+            let output_edges = graph.neighbors_directed(input, petgraph::Direction::Outgoing);
+            let consumers: Vec<_> = output_edges.clone()
+                .map(|e| bus_nodes.get(e).unwrap())
+                .flat_map(|n| n.desired_input_belts().filter(|&(k, _)| k == input).map(move |(_, v)| (v, n))).collect();
+
+
+            let mut total_instances_needed: i32 = graph.neighbors_directed(input, petgraph::Direction::Outgoing).map(|e| (graph[(input, e)].items_per_second / lane_throughput).ceil().to_integer()).sum();
+            if kind == &WireKind::Belt {
+                total_instances_needed = consumers.len() as i32;
+            }
+
+            for i in 1..total_instances_needed {
+                for j in 0..(total_instances_needed-i-1) {
+                    pcb.add(Entity { location: Point::new(j, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+                }
+                pcb.add(Entity { location: Point::new(total_instances_needed-1-i, -i-1) + Vector::new(input_xoffset, gap_upper), function: Function::Splitter(Direction::Down) });
+            }
+
+            for i in 0..total_instances_needed {
+                pcb.add(Entity { location: Point::new(i, -1) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+            }
+
+            let input_name = match kind {
+                WireKind::Belt => input.to_owned(),
+                WireKind::Pipe(_) => format!("{}-barrel", input),
+            };
+            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 1) + Vector::new(input_xoffset, gap_upper), function: Function::InputMarker(input_name) });
+            pcb.add(Entity { location: Point::new(0, -total_instances_needed - 2) + Vector::new(input_xoffset, gap_upper), function: Function::Belt(Direction::Down) });
+
+            available_outputs.insert(input, (0..total_instances_needed).map(|i| Point::new(i, -1) + Vector::new(input_xoffset, gap_upper)).collect());
+
+            input_xoffset += total_instances_needed + 2;
+        }
+
+        // 3. global output
+        let global_output_point = Point::new(0, -1) + Vector::new(input_xoffset, gap_upper);
+        pcb.add(Entity { location: global_output_point, function: Function::Belt(Direction::Up) });
+        pcb.add(Entity { location: global_output_point + Vector::new(0, -1), function: Function::Belt(Direction::Up) });
+        pcb.add(Entity { location: global_output_point + Vector::new(0, -2), function: Function::Belt(Direction::Up) });
+
+
+
+
         let col_vec = Vector::new(12, 0);
         let tile_vec = Vector::new(0, 4);
         let mut cols_counter = 0;
         for &recipe in order.iter() {
+            let tile_vec = if recipe == "electronic-circuit" {
+                tile_vec * 5
+            } else {
+                tile_vec
+            };
+
             let output_edges = graph.neighbors_directed(recipe, petgraph::Direction::Outgoing);
 
             let node = bus_nodes.get(recipe).unwrap();
@@ -304,23 +353,56 @@ impl Placer for BusPlacer {
                             Entity { location: Point::new(2, 1) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: InserterKind::LongHanded } },
                         ]);
                     }
-                    // primary components: assembler, electricity, belts, inserters
-                    pcb.add_all(&[
-                        Entity { location: Point::new(1, 0) + tile_start, function: Function::Belt(Direction::Down) },
-                        Entity { location: Point::new(1, 1) + tile_start, function: Function::Belt(Direction::Down) },
-                        Entity { location: Point::new(1, 2) + tile_start, function: Function::Belt(Direction::Down) },
-                        Entity { location: Point::new(1, 3) + tile_start, function: Function::Belt(Direction::Down) },
-                        Entity { location: Point::new(7 + ox, 0) + tile_start, function: Function::Belt(Direction::Up) },
-                        Entity { location: Point::new(7 + ox, 1) + tile_start, function: Function::Belt(Direction::Up) },
-                        Entity { location: Point::new(7 + ox, 2) + tile_start, function: Function::Belt(Direction::Up) },
-                        Entity { location: Point::new(7 + ox, 3) + tile_start, function: Function::Belt(Direction::Up) },
 
-                        Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.primary_inserter_kind } },
-                        Entity { location: Point::new(6, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.out_serter_kind } },
-                        Entity { location: Point::new(3, 0) + tile_start, function: function_map[recipe].clone() },
-                        Entity { location: Point::new(2, 3) + tile_start, function: Function::ElectricPole },
-                        Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },
-                    ]);
+                    if recipe == "electronic-circuit" {
+                        for i in 0..(4*5) {
+                            pcb.add(Entity { location: Point::new(1, i) + tile_start, function: Function::Belt(Direction::Down) });
+                            pcb.add(Entity { location: Point::new(7, i) + tile_start, function: Function::Belt(Direction::Up) });
+                        }
+                        for i in 0..5 {
+                            pcb.add(Entity { location: Point::new(2, 2 + 4*i) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: InserterKind::Normal } });
+                            pcb.add(Entity { location: Point::new(2, 3 + 4*i) + tile_start, function: Function::ElectricPole });
+                            pcb.add(Entity { location: Point::new(6, 3 + 4*i) + tile_start, function: Function::ElectricPole });
+                        }
+
+                        let di_mid = find_inserter_kind(Rational::new(3, 2), false, "EC direct insert mid");
+                        let di_outer = find_inserter_kind(Rational::new(3, 1), false, "EC direct insert outer");
+                        pcb.add_all(&[
+                            // outserters
+                            Entity { location: Point::new(6, 2 + 4*1) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: InserterKind::Normal } },
+                            Entity { location: Point::new(6, 2 + 4*3) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: InserterKind::Normal } },
+
+                            // direct insertion
+                            Entity { location: Point::new(4, 3 + 4*0) + tile_start, function: Function::Inserter { orientation: Direction::Down, kind: di_outer } },
+                            Entity { location: Point::new(4, 3 + 4*1) + tile_start, function: Function::Inserter { orientation: Direction::Up, kind: di_mid } },
+                            Entity { location: Point::new(4, 3 + 4*2) + tile_start, function: Function::Inserter { orientation: Direction::Down, kind: di_mid } },
+                            Entity { location: Point::new(4, 3 + 4*3) + tile_start, function: Function::Inserter { orientation: Direction::Up, kind: di_outer } },
+
+                            Entity { location: Point::new(3, 4*1) + tile_start, function: Function::Assembler { recipe: "electronic-circuit".to_owned() } },
+                            Entity { location: Point::new(3, 4*3) + tile_start, function: Function::Assembler { recipe: "electronic-circuit".to_owned() } },
+                            Entity { location: Point::new(3, 4*0) + tile_start, function: Function::Assembler { recipe: "copper-cable".to_owned() } },
+                            Entity { location: Point::new(3, 4*2) + tile_start, function: Function::Assembler { recipe: "copper-cable".to_owned() } },
+                            Entity { location: Point::new(3, 4*4) + tile_start, function: Function::Assembler { recipe: "copper-cable".to_owned() } },
+                        ]);
+                    } else {
+                        // primary components: assembler, electricity, belts, inserters
+                        pcb.add_all(&[
+                            Entity { location: Point::new(1, 0) + tile_start, function: Function::Belt(Direction::Down) },
+                            Entity { location: Point::new(1, 1) + tile_start, function: Function::Belt(Direction::Down) },
+                            Entity { location: Point::new(1, 2) + tile_start, function: Function::Belt(Direction::Down) },
+                            Entity { location: Point::new(1, 3) + tile_start, function: Function::Belt(Direction::Down) },
+                            Entity { location: Point::new(7 + ox, 0) + tile_start, function: Function::Belt(Direction::Up) },
+                            Entity { location: Point::new(7 + ox, 1) + tile_start, function: Function::Belt(Direction::Up) },
+                            Entity { location: Point::new(7 + ox, 2) + tile_start, function: Function::Belt(Direction::Up) },
+                            Entity { location: Point::new(7 + ox, 3) + tile_start, function: Function::Belt(Direction::Up) },
+
+                            Entity { location: Point::new(2, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.primary_inserter_kind } },
+                            Entity { location: Point::new(6, 2) + tile_start, function: Function::Inserter { orientation: Direction::Right, kind: node.out_serter_kind } },
+                            Entity { location: Point::new(3, 0) + tile_start, function: function_map[recipe].clone() },
+                            Entity { location: Point::new(2, 3) + tile_start, function: Function::ElectricPole },
+                            Entity { location: Point::new(6, 3) + tile_start, function: Function::ElectricPole },
+                        ]);
+                    }
 
                     // fluid input to the right
                     if let Some(pipe_in) = node.pipe_input {
@@ -394,7 +476,7 @@ impl Placer for BusPlacer {
                 }
 
                 // safely terminate primary input belt
-                pcb.replace(Entity { location: Point::new(1, 3) + col_start + tile_vec * (howmany_total - 1), function: Function::Belt(Direction::Up) });
+                pcb.replace(Entity { location: Point::new(1, -1) + col_start + tile_vec * howmany_total, function: Function::Belt(Direction::Up) });
 
                 let mut flow = node.items_out_per_second_per_assembler * howmany_total;
                 if let Some(carry) = output_belt_carry.as_ref() {
@@ -467,7 +549,9 @@ impl Placer for BusPlacer {
                 }
 
 
-                output_nodes.reverse();
+                //output_nodes.reverse();
+                //consumers_here.reverse();
+
                 //available_outputs.entry(recipe).or_default().extend_from_slice(&output_nodes);
                 assert_eq!(output_nodes.len(), consumers_here.len());
                 for (point, customer) in output_nodes.into_iter().zip(consumers_here) {
@@ -479,6 +563,7 @@ impl Placer for BusPlacer {
                 }
                 cols_counter += 1;
             }
+            println!("{:?}", consumers);
             assert!(consumers.is_empty());
         }
 

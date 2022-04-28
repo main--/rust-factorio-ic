@@ -21,8 +21,14 @@ pub fn run<P: Pcb>(recipe: &str, amount: f64, pathfinder: impl Fn(&mut P, &Neede
     let path = env::args().nth(1).unwrap_or(
         "recipe".to_string()
     );
-    let recipes = recipe::extract_recipes(path).unwrap();
+    let mut recipes = recipe::extract_recipes(path).unwrap();
     println!("Parsed {} recipes", recipes.len());
+
+    // apply recipe overrides
+    let ec_recipe = recipes.iter_mut().find(|r| r.results.len() == 1 && r.results[0].name == "electronic-circuit").unwrap();
+    let ec_ing = ec_recipe.ingredients.iter_mut().find(|i| i.name == "copper-cable").unwrap();
+    ec_ing.name = "copper-plate".to_string();
+    ec_ing.amount /= 2;
 
     let desired_per_second = Rational::approximate_float(amount).unwrap();
     let tree = kirkmcdonald::kirkmcdonald(&recipes, recipe, desired_per_second, &pcb::WireKind::Belt);
